@@ -317,7 +317,9 @@ export default function MapView({
     let outlinesLayerInstance: any = null;
     let layerGroup: any = null;
 
-    if (detailLevel === 'block') {
+    const effectiveDetailLevel = viewMode === 'default' ? 'kebun' : detailLevel;
+
+    if (effectiveDetailLevel === 'block') {
       const blocksLayer = L.geoJSON(
         { type: 'FeatureCollection', features: filteredFeatures },
         {
