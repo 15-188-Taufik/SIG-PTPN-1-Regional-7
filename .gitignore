@@ -1,0 +1,32 @@
+# Environments
+.venv/
+venv/
+ENV/
+.env
+backend/.env
+
+# Python caching & build
+__pycache__/
+*.py[cod]
+*.so
+.pytest_cache/
+.coverage
+htmlcov/
+dist/
+build/
+*.egg-info/
+
+# Next.js & Node
+node_modules/
+frontend/node_modules/
+.next/
+frontend/.next/
+*.log
+.env.local
+frontend/.env.local
+
+# IDEs & System
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db

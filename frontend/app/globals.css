@@ -1,0 +1,282 @@
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@300;400;500;600;700&display=swap');
+
+/* ============================================================
+   PTPN SIG — IBM Carbon Design System (g10 Light Theme)
+   Primary Color: PTPN Green (#006A4E)
+   ============================================================ */
+
+:root {
+  /* Carbon Design System Color Tokens */
+  --cds-background: #f4f4f4;          /* g10 background */
+  --cds-layer: #ffffff;               /* g10 layer / container surface */
+  --cds-primary: #006A4E;             /* PTPN Green Primary */
+  --cds-primary-hover: #00503B;       /* Hover state */
+  --cds-primary-active: #003a2a;      /* Active state */
+  --cds-text-primary: #161616;        /* Carbon text-01 (Dark Charcoal) */
+  --cds-text-secondary: #525252;      /* Carbon text-02 (Medium Gray) */
+  --cds-text-muted: #8d8d8d;          /* Carbon text-03 (Light Gray) */
+  --cds-border: #e0e0e0;              /* Carbon border-subtle */
+  --cds-border-strong: #8d8d8d;       /* Carbon border-strong */
+  --cds-field: #ffffff;               /* Input field bg */
+  --cds-field-hover: #e5e5e5;         /* Input hover bg */
+  
+  /* Alert Severity Colors */
+  --cds-support-error: #da1e28;       /* Carbon error */
+  --cds-support-warning: #f5c842;     /* Carbon warning */
+  --cds-support-info: #0043ce;        /* Carbon info */
+  --cds-support-success: #24a148;     /* Carbon success */
+
+  /* Kebun Color Map */
+  --color-bergen: #46A5DD;
+  --color-kedaton: #1CC729;
+  --color-tubu: #F5A623;
+  --color-wabe: #A855F7;
+  --color-wali: #848684;
+
+  /* Spacing Grid (8px System) */
+  --spacing-xxs: 4px;
+  --spacing-xs: 8px;
+  --spacing-sm: 12px;
+  --spacing-md: 16px;
+  --spacing-lg: 24px;
+  --spacing-xl: 32px;
+
+  /* Card Radius (Carbon uses sharp corners or minimal curves) */
+  --radius-sharp: 0px;
+  --radius-subtle: 2px;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html, body {
+  font-family: 'IBM Plex Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  background: var(--cds-background);
+  color: var(--cds-text-primary);
+  height: 100%;
+  overflow: hidden;
+}
+
+#__next, main {
+  height: 100%;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+/* Scrollbar (Carbon styled, narrow and clean) */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: #f4f4f4;
+}
+::-webkit-scrollbar-thumb {
+  background: #c6c6c6;
+  border-radius: 0px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #8d8d8d;
+}
+
+/* Carbon Flat Card/Tile Container */
+.carbon-tile {
+  background: var(--cds-layer);
+  border: 1px solid var(--cds-border);
+  padding: var(--spacing-md);
+  margin-bottom: var(--spacing-xs);
+}
+
+.carbon-tile-interactive {
+  background: var(--cds-layer);
+  border: 1px solid var(--cds-border);
+  padding: var(--spacing-md);
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+
+.carbon-tile-interactive:hover {
+  background: #f4f4f4;
+  border-color: var(--cds-border-strong);
+}
+
+.carbon-tile-active {
+  border-left: 4px solid var(--cds-primary);
+  background: #f4f4f4;
+}
+
+/* Button Primary (IBM Carbon Style: Flat, solid, sharp corners) */
+.btn-primary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 12px 16px;
+  background: var(--cds-primary);
+  color: #ffffff;
+  border: none;
+  border-radius: var(--radius-sharp);
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.15s ease;
+  width: 100%;
+  text-align: left;
+}
+
+.btn-primary:hover {
+  background: var(--cds-primary-hover);
+}
+
+.btn-primary:active {
+  background: var(--cds-primary-active);
+}
+
+.btn-primary:disabled {
+  background: #e0e0e0;
+  color: #8d8d8d;
+  cursor: not-allowed;
+}
+
+/* Input (IBM Carbon Style: Flat, solid light gray field with thick bottom border focus indicator) */
+.input-field {
+  width: 100%;
+  padding: 10px 16px;
+  background: #ffffff;
+  border: 1px solid var(--cds-border-strong);
+  border-bottom: 2px solid var(--cds-border-strong);
+  border-radius: var(--radius-sharp);
+  color: var(--cds-text-primary);
+  font-family: inherit;
+  font-size: 14px;
+  outline: none;
+  transition: background 0.15s, border-color 0.15s;
+}
+
+.input-field:focus {
+  border-bottom-color: var(--cds-primary);
+  background: #ffffff;
+}
+
+.input-field::placeholder {
+  color: var(--cds-text-muted);
+}
+
+/* Badges (Carbon Labels) */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  font-size: 11px;
+  font-weight: 600;
+  border-radius: 0px;
+  text-transform: uppercase;
+}
+
+.badge-blue { background: #e0f2fe; color: #0369a1; border: 1px solid #bae6fd; }
+.badge-green { background: #dcfce7; color: #15803d; border: 1px solid #bbf7d0; }
+.badge-gray { background: #f3f4f6; color: #4b5563; border: 1px solid #e5e7eb; }
+.badge-cream { background: #fef9c3; color: #a16207; border: 1px solid #fef08a; }
+
+/* Carbon Data Table styling overrides */
+.carbon-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: var(--spacing-xs);
+  font-size: 13px;
+  color: var(--cds-text-primary);
+}
+
+.carbon-table th {
+  background: #e8e8e8;
+  text-align: left;
+  padding: 8px 12px;
+  font-weight: 600;
+  border-bottom: 1px solid var(--cds-border);
+}
+
+.carbon-table td {
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--cds-border);
+}
+
+.carbon-table tr:hover td {
+  background: #f4f4f4;
+}
+
+/* Leaflet Container Overrides for Light Positron Theme */
+.leaflet-container {
+  background: #f4f4f4 !important;
+  font-family: 'IBM Plex Sans', sans-serif;
+}
+
+/* Leaflet Popup styling (IBM Carbon Theme) */
+.leaflet-popup-content-wrapper {
+  background: #ffffff !important;
+  border: 1px solid var(--cds-border) !important;
+  border-radius: var(--radius-sharp) !important;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1) !important;
+  color: var(--cds-text-primary) !important;
+}
+
+.leaflet-popup-tip {
+  background: #ffffff !important;
+}
+
+.leaflet-popup-close-button {
+  color: var(--cds-text-secondary) !important;
+  font-size: 16px !important;
+  top: 6px !important;
+  right: 6px !important;
+}
+
+.leaflet-control-zoom {
+  border: 1px solid var(--cds-border) !important;
+  border-radius: var(--radius-sharp) !important;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.1) !important;
+}
+
+.leaflet-control-zoom a {
+  background: #ffffff !important;
+  color: var(--cds-text-primary) !important;
+  border-color: var(--cds-border) !important;
+  line-height: 28px !important;
+  width: 28px !important;
+  height: 28px !important;
+}
+
+.leaflet-control-zoom a:hover {
+  background: #e5e5e5 !important;
+}
+
+.leaflet-control-attribution {
+  background: rgba(255,255,255,0.8) !important;
+  color: var(--cds-text-secondary) !important;
+  font-size: 10px !important;
+}
+
+/* Animations */
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes slideUp {
+  from { transform: translateY(100%); }
+  to { transform: translateY(0); }
+}
+
+.animate-fade-in {
+  animation: fadeIn 0.2s ease forwards;
+}
+
+.animate-slide-up {
+  animation: slideUp 0.25s cubic-bezier(0.2, 0, 0.38, 0.9) forwards;
+}

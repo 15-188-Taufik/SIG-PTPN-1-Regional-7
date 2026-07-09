@@ -1,0 +1,17 @@
+services:
+  - type: web
+    name: sig-ptpn-api
+    runtime: python
+    buildCommand: pip install -r backend/requirements.txt
+    startCommand: cd backend && uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    envVars:
+      - key: DATABASE_URL
+        value: mock
+      - key: JWT_SECRET_KEY
+        generateValue: true
+      - key: CORS_ORIGINS
+        value: '["*"]'
+      - key: ADMIN_USERNAME
+        value: ptpnr7
+      - key: ADMIN_PASSWORD
+        value: lampung2024
