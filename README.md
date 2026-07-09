@@ -1,4 +1,4 @@
-# SIG PTPN — Sistem Informasi Geografis Kebun PTPN Regional 7 Lampung
+# SIG PTPN 1— Sistem Informasi Geografis Kebun PTPN 1 Regional 7 Lampung
 
 Repositori ini berisi seluruh kode sumber untuk aplikasi Sistem Informasi Geografis (SIG) Dashboard Pemantauan Lahan dan Produksi Kebun PTPN Regional 7 di Lampung (Way Lima, Bergen, Kedaton, TUBU, Wabe, dan Wali).
 
