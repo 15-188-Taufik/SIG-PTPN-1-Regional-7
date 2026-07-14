@@ -5,18 +5,17 @@ import { StatsResponse, GeoJSONFeature, FeatureCollection } from '@/types/kebun'
 import { ViewMode } from './MapView';
 
 const KEBUN_COLORS: Record<string, string> = {
-  Bergen: '#0f62fe', // Carbon Blue
-  Kedaton: '#006A4E', // PTPN Green
-  KSO: '#11a391', // Carbon Teal
-  TUBU: '#f5a623', // Carbon Orange
-  Wabe: '#8a3ffc', // Carbon Purple
-  Wali: '#6f6f6f', // Carbon Gray
+  'Unit Bekri': '#0072B2',
+  'Unit Bergen': '#009E73',
+  'Unit Rejosari': '#CC79A7',
+  'Unit Way Berulu': '#E69F00',
+  'Unit Kedaton': '#56B4E9',
 };
 
 export function getKebunDisplayName(name: string | null): string {
   if (!name) return '-';
   const norm = name.trim();
-  if (norm.toLowerCase() === 'wabe') return 'Way Belulu';
+  if (norm.toLowerCase() === 'wabe') return 'Way Berulu';
   return norm;
 }
 
@@ -34,6 +33,8 @@ interface SidePanelProps {
   geojsonData: FeatureCollection | null;
   onSelectFeature: (feature: GeoJSONFeature) => void;
   onSelectKebunAnalysis?: (kebun: string) => void;
+  onHighlightKebun?: (kebun: string) => void;
+  onUploadSuccess?: () => void;
   detailLevel: 'block' | 'kebun';
   onDetailLevelChange: (level: 'block' | 'kebun') => void;
   collapsed: boolean;
@@ -61,12 +62,28 @@ export default function SidePanel({
   geojsonData,
   onSelectFeature,
   onSelectKebunAnalysis,
+  onHighlightKebun,
+  onUploadSuccess,
   detailLevel,
   onDetailLevelChange,
   collapsed,
   onToggleCollapse,
 }: SidePanelProps) {
-  const [activeTab, setActiveTab] = useState<'filter' | 'alerts'>('filter');
+  const [activeTab, setActiveTab] = useState<'filter' | 'alerts' | 'upload'>('filter');
+  const [expandedKebunAlerts, setExpandedKebunAlerts] = useState<Record<string, boolean>>({});
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [uploading, setUploading] = useState(false);
+  const [uploadResult, setUploadResult] = useState<{
+    success: boolean;
+    message: string;
+  } | null>(null);
+
+  function toggleKebunAlerts(kebun: string) {
+    setExpandedKebunAlerts((prev) => ({
+      ...prev,
+      [kebun]: !prev[kebun],
+    }));
+  }
 
   function handleToggleAll() {
     if (activeKebun.length === kebunList.length) {
@@ -226,18 +243,21 @@ export default function SidePanel({
             }}
           >
             <button
-              onClick={() => setActiveTab('filter')}
+              onClick={() => {
+                setActiveTab('filter');
+                setUploadResult(null);
+              }}
               style={{
                 flex: 1,
-                padding: '12px',
+                padding: '12px 6px',
                 background: activeTab === 'filter' ? '#ffffff' : '#f4f4f4',
                 border: 'none',
                 borderBottom: activeTab === 'filter' ? '3px solid var(--cds-primary)' : '3px solid transparent',
                 color: activeTab === 'filter' ? 'var(--cds-text-primary)' : 'var(--cds-text-secondary)',
-                fontSize: '12px',
+                fontSize: '11px',
                 fontWeight: '600',
                 textTransform: 'uppercase',
-                letterSpacing: '0.04em',
+                letterSpacing: '0.02em',
                 cursor: 'pointer',
                 fontFamily: 'inherit',
               }}
@@ -245,24 +265,27 @@ export default function SidePanel({
               Filter Kebun
             </button>
             <button
-              onClick={() => setActiveTab('alerts')}
+              onClick={() => {
+                setActiveTab('alerts');
+                setUploadResult(null);
+              }}
               style={{
                 flex: 1,
-                padding: '12px',
+                padding: '12px 6px',
                 background: activeTab === 'alerts' ? '#ffffff' : '#f4f4f4',
                 border: 'none',
                 borderBottom: activeTab === 'alerts' ? '3px solid var(--cds-primary)' : '3px solid transparent',
                 color: activeTab === 'alerts' ? 'var(--cds-text-primary)' : 'var(--cds-text-secondary)',
-                fontSize: '12px',
+                fontSize: '11px',
                 fontWeight: '600',
                 textTransform: 'uppercase',
-                letterSpacing: '0.04em',
+                letterSpacing: '0.02em',
                 cursor: 'pointer',
                 fontFamily: 'inherit',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                gap: '6px',
+                gap: '4px',
               }}
             >
               Peringatan
@@ -273,13 +296,39 @@ export default function SidePanel({
                     color: '#ffffff',
                     fontSize: '10px',
                     fontWeight: '700',
-                    padding: '1px 6px',
+                    padding: '1px 5px',
                     borderRadius: '0px',
                   }}
                 >
                   {alerts.length}
                 </span>
               )}
+            </button>
+            <button
+              onClick={() => {
+                setActiveTab('upload');
+                setUploadResult(null);
+              }}
+              style={{
+                flex: 1,
+                padding: '12px 6px',
+                background: activeTab === 'upload' ? '#ffffff' : '#f4f4f4',
+                border: 'none',
+                borderBottom: activeTab === 'upload' ? '3px solid var(--cds-primary)' : '3px solid transparent',
+                color: activeTab === 'upload' ? 'var(--cds-text-primary)' : 'var(--cds-text-secondary)',
+                fontSize: '11px',
+                fontWeight: '600',
+                textTransform: 'uppercase',
+                letterSpacing: '0.02em',
+                cursor: 'pointer',
+                fontFamily: 'inherit',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '4px',
+              }}
+            >
+              Upload Data
             </button>
           </div>
 
@@ -465,15 +514,16 @@ export default function SidePanel({
                                  gap: '1px',
                                }}
                              >
+                               {/* Card Button: Highlights/zooms to kebun */}
                                <button
-                                 onClick={() => onToggleKebun(kebun)}
+                                 onClick={() => onHighlightKebun && onHighlightKebun(kebun)}
                                  style={{
                                    flex: 1,
                                    display: 'flex',
                                    alignItems: 'center',
                                    gap: '12px',
                                    padding: '10px 12px',
-                                   background: isActive ? '#f4f4f4' : '#ffffff',
+                                   background: '#ffffff',
                                    borderTop: `1px solid ${isActive ? 'var(--cds-border-strong)' : 'var(--cds-border)'}`,
                                    borderRight: 'none',
                                    borderBottom: `1px solid ${isActive ? 'var(--cds-border-strong)' : 'var(--cds-border)'}`,
@@ -484,6 +534,9 @@ export default function SidePanel({
                                    fontFamily: 'inherit',
                                    borderRadius: '0px',
                                  }}
+                                 title={`Klik untuk menyoroti kebun ${getKebunDisplayName(kebun)}`}
+                                 onMouseEnter={(e) => e.currentTarget.style.background = '#f4f4f4'}
+                                 onMouseLeave={(e) => e.currentTarget.style.background = '#ffffff'}
                                >
                                  <div style={{ flex: 1, minWidth: 0 }}>
                                    <div
@@ -511,6 +564,32 @@ export default function SidePanel({
                                      </div>
                                    )}
                                  </div>
+                               </button>
+
+                               {/* Checkbox Button: Toggles kebun on/off on map */}
+                               <button
+                                 onClick={(e) => {
+                                   e.stopPropagation();
+                                   onToggleKebun(kebun);
+                                 }}
+                                 style={{
+                                   width: '40px',
+                                   background: '#ffffff',
+                                   border: 'none',
+                                   borderTop: `1px solid ${isActive ? 'var(--cds-border-strong)' : 'var(--cds-border)'}`,
+                                   borderBottom: `1px solid ${isActive ? 'var(--cds-border-strong)' : 'var(--cds-border)'}`,
+                                   display: 'flex',
+                                   alignItems: 'center',
+                                   justifyContent: 'center',
+                                   cursor: 'pointer',
+                                   color: 'var(--cds-primary)',
+                                   transition: 'background 0.1s ease',
+                                   borderRadius: '0px',
+                                 }}
+                                 title={isActive ? 'Sembunyikan dari peta' : 'Tampilkan di peta'}
+                                 onMouseEnter={(e) => e.currentTarget.style.background = '#f4f4f4'}
+                                 onMouseLeave={(e) => e.currentTarget.style.background = '#ffffff'}
+                               >
                                  <div
                                    style={{
                                      width: '14px',
@@ -596,72 +675,325 @@ export default function SidePanel({
               </>
             )}
 
-            {activeTab === 'alerts' && (
-              <>
-                <div style={sectionLabel}>Daftar Blok Bermasalah</div>
-                {alerts.length === 0 ? (
-                  <div style={{ textAlign: 'center', padding: '24px 0', color: 'var(--cds-text-muted)', fontSize: '12px' }}>
-                    ✅ Tidak ada isu kritis terdeteksi pada blok kebun saat ini.
-                  </div>
-                ) : (
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                    {alerts.map((item, index) => {
-                      const isHigh = item.severity === 'high';
-                      return (
-                        <button
-                          key={index}
-                          onClick={() => onSelectFeature(item.feature)}
-                          style={{
-                            display: 'flex',
-                            flexDirection: 'column',
-                            gap: '4px',
-                            padding: '10px 12px',
-                            background: '#ffffff',
-                            borderTop: '1px solid var(--cds-border)',
-                            borderRight: '1px solid var(--cds-border)',
-                            borderBottom: '1px solid var(--cds-border)',
-                            borderLeft: `4px solid ${isHigh ? 'var(--cds-support-error)' : 'var(--cds-support-warning)'}`,
-                            cursor: 'pointer',
-                            textAlign: 'left',
-                            width: '100%',
-                            fontFamily: 'inherit',
-                            transition: 'background 0.1s ease',
-                          }}
-                          onMouseEnter={(e) => {
-                            e.currentTarget.style.background = '#f4f4f4';
-                          }}
-                          onMouseLeave={(e) => {
-                            e.currentTarget.style.background = '#ffffff';
-                          }}
-                        >
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                            <span
+            {activeTab === 'alerts' && (() => {
+              // Group alerts by kebun name
+              const alertsByKebun: Record<string, AlertItem[]> = {};
+              alerts.forEach((alert) => {
+                const k = alert.feature.properties.kebun || 'Tidak Diketahui';
+                if (!alertsByKebun[k]) {
+                  alertsByKebun[k] = [];
+                }
+                alertsByKebun[k].push(alert);
+              });
+
+              return (
+                <>
+                  <div style={sectionLabel}>Daftar Blok Bermasalah</div>
+                  {alerts.length === 0 ? (
+                    <div style={{ textAlign: 'center', padding: '24px 0', color: 'var(--cds-text-muted)', fontSize: '12px' }}>
+                      ✅ Tidak ada isu kritis terdeteksi pada blok kebun saat ini.
+                    </div>
+                  ) : (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                      {Object.entries(alertsByKebun)
+                        .sort(([a], [b]) => {
+                          if (a.toLowerCase() === 'kso') return 1;
+                          if (b.toLowerCase() === 'kso') return -1;
+                          return a.localeCompare(b);
+                        })
+                        .map(([kebun, items]) => {
+                          const isExpanded = !!expandedKebunAlerts[kebun];
+                          const displayName = getKebunDisplayName(kebun);
+                          const hasHighSeverity = items.some((item) => item.severity === 'high');
+
+                          return (
+                            <div
+                              key={kebun}
                               style={{
-                                fontSize: '10px',
-                                fontWeight: '700',
-                                color: isHigh ? 'var(--cds-support-error)' : '#b27b00',
-                                textTransform: 'uppercase',
-                                letterSpacing: '0.04em',
+                                border: '1px solid var(--cds-border)',
+                                background: '#ffffff',
+                                display: 'flex',
+                                flexDirection: 'column',
                               }}
                             >
-                              {item.title}
-                            </span>
-                          </div>
-                          <div
-                            style={{
-                              fontSize: '11.5px',
-                              color: 'var(--cds-text-secondary)',
-                              lineHeight: '1.4',
-                            }}
-                          >
-                            {item.desc}
-                          </div>
-                        </button>
-                      );
-                    })}
+                              {/* Accordion Group Header Button */}
+                              <button
+                                onClick={() => toggleKebunAlerts(kebun)}
+                                style={{
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'space-between',
+                                  width: '100%',
+                                  padding: '10px 12px',
+                                  background: isExpanded ? '#f4f4f4' : '#ffffff',
+                                  border: 'none',
+                                  borderLeft: `4px solid ${hasHighSeverity ? 'var(--cds-support-error)' : 'var(--cds-support-warning)'}`,
+                                  cursor: 'pointer',
+                                  textAlign: 'left',
+                                  fontFamily: 'inherit',
+                                  transition: 'background 0.1s ease',
+                                }}
+                              >
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                  {/* Expand/Collapse Chevron Indicator */}
+                                  <svg
+                                    width="10"
+                                    height="10"
+                                    viewBox="0 0 16 16"
+                                    fill="none"
+                                    style={{
+                                      transform: isExpanded ? 'rotate(90deg)' : 'none',
+                                      transition: 'transform 0.15s ease-in-out',
+                                      color: 'var(--cds-text-secondary)',
+                                    }}
+                                  >
+                                    <path
+                                      d="M6 4L10 8L6 12"
+                                      stroke="currentColor"
+                                      strokeWidth="2.5"
+                                      strokeLinecap="round"
+                                      strokeLinejoin="round"
+                                    />
+                                  </svg>
+                                  <span style={{ fontSize: '12.5px', fontWeight: '600', color: 'var(--cds-text-primary)' }}>
+                                    Kebun {displayName}
+                                  </span>
+                                </div>
+                                <span
+                                  style={{
+                                    background: hasHighSeverity ? 'var(--cds-support-error)' : '#b27b00',
+                                    color: '#ffffff',
+                                    fontSize: '9.5px',
+                                    fontWeight: '700',
+                                    padding: '2px 6px',
+                                    borderRadius: '0px',
+                                  }}
+                                >
+                                  {items.length} Isu
+                                </span>
+                              </button>
+
+                              {/* Accordion Group Content */}
+                              {isExpanded && (
+                                <div
+                                  style={{
+                                    display: 'flex',
+                                    flexDirection: 'column',
+                                    gap: '1px',
+                                    background: 'var(--cds-border)',
+                                    paddingTop: '1px',
+                                  }}
+                                >
+                                  {items.map((item, idx) => {
+                                    const isHigh = item.severity === 'high';
+                                    return (
+                                      <button
+                                        key={idx}
+                                        onClick={() => onSelectFeature(item.feature)}
+                                        style={{
+                                          display: 'flex',
+                                          flexDirection: 'column',
+                                          gap: '4px',
+                                          padding: '10px 12px 10px 24px', // Indented alerts list
+                                          background: '#ffffff',
+                                          border: 'none',
+                                          borderLeft: `4px solid ${isHigh ? 'var(--cds-support-error)' : 'var(--cds-support-warning)'}`,
+                                          cursor: 'pointer',
+                                          textAlign: 'left',
+                                          width: '100%',
+                                          fontFamily: 'inherit',
+                                          transition: 'background 0.1s ease',
+                                        }}
+                                        onMouseEnter={(e) => {
+                                          e.currentTarget.style.background = '#f4f4f4';
+                                        }}
+                                        onMouseLeave={(e) => {
+                                          e.currentTarget.style.background = '#ffffff';
+                                        }}
+                                      >
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                          <span
+                                            style={{
+                                              fontSize: '9px',
+                                              fontWeight: '700',
+                                              color: isHigh ? 'var(--cds-support-error)' : '#b27b00',
+                                              textTransform: 'uppercase',
+                                              letterSpacing: '0.04em',
+                                            }}
+                                          >
+                                            {item.title}
+                                          </span>
+                                        </div>
+                                        <div
+                                          style={{
+                                            fontSize: '11.5px',
+                                            color: 'var(--cds-text-secondary)',
+                                            lineHeight: '1.4',
+                                          }}
+                                        >
+                                          {item.desc.replace(/^[^-]+-\s*/, '') /* Remove redundant kebun prefix */}
+                                        </div>
+                                      </button>
+                                    );
+                                  })}
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })}
+                    </div>
+                  )}
+                </>
+              );
+            })()}
+
+            {activeTab === 'upload' && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                <div style={{ fontSize: '14px', fontWeight: '600', color: 'var(--cds-text-primary)' }}>
+                  Unggah Data Baru (.geojson)
+                </div>
+                <div style={{ fontSize: '12px', color: 'var(--cds-text-secondary)', lineHeight: '1.5' }}>
+                  Unggah berkas GeoJSON untuk menambahkan blok baru atau memperbarui data blok yang sudah ada. 
+                  Sistem akan mencocokkan kode polygon (`no_polygon`) untuk mencegah duplikasi data.
+                </div>
+
+                {/* Dropzone area */}
+                <div
+                  onDragOver={(e) => e.preventDefault()}
+                  onDrop={(e) => {
+                    e.preventDefault();
+                    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+                      const file = e.dataTransfer.files[0];
+                      if (file.name.endsWith('.geojson') || file.name.endsWith('.json')) {
+                        setSelectedFile(file);
+                        setUploadResult(null);
+                      } else {
+                        setUploadResult({ success: false, message: 'Hanya berkas .geojson atau .json yang didukung.' });
+                      }
+                    }
+                  }}
+                  style={{
+                    border: '1px dashed var(--cds-border-strong)',
+                    padding: '24px 16px',
+                    textAlign: 'center',
+                    background: '#f4f4f4',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '8px',
+                    minHeight: '120px',
+                  }}
+                  onClick={() => {
+                    const input = document.createElement('input');
+                    input.type = 'file';
+                    input.accept = '.geojson,.json';
+                    input.onchange = (e) => {
+                      const files = (e.target as HTMLInputElement).files;
+                      if (files && files[0]) {
+                        setSelectedFile(files[0]);
+                        setUploadResult(null);
+                      }
+                    };
+                    input.click();
+                  }}
+                >
+                  <svg width="24" height="24" viewBox="0 0 32 32" fill="none" stroke="currentColor" strokeWidth="2.5" style={{ color: 'var(--cds-text-secondary)', transition: 'transform 0.15s ease' }}>
+                    <path d="M6 20v6h20v-6M16 4v16M9 11l7-7 7 7" />
+                  </svg>
+                  <div style={{ fontSize: '12px', fontWeight: '600', color: 'var(--cds-text-primary)' }}>
+                    {selectedFile ? selectedFile.name : 'Pilih berkas GeoJSON'}
+                  </div>
+                  <div style={{ fontSize: '11px', color: 'var(--cds-text-secondary)' }}>
+                    {selectedFile ? `${(selectedFile.size / 1024).toFixed(1)} KB` : 'Tarik & lepas file di sini atau klik untuk menjelajah'}
+                  </div>
+                </div>
+
+                {selectedFile && (
+                  <div style={{ display: 'flex', gap: '8px' }}>
+                    <button
+                      onClick={async () => {
+                        if (!selectedFile) return;
+                        setUploading(true);
+                        setUploadResult(null);
+                        try {
+                          const { uploadGeoJSON } = await import('@/lib/api');
+                          const res = await uploadGeoJSON(selectedFile);
+                          setUploadResult({
+                            success: true,
+                            message: res.message || 'Data berhasil diunggah dan disinkronkan.',
+                          });
+                          setSelectedFile(null);
+                          if (onUploadSuccess) {
+                            onUploadSuccess();
+                          }
+                        } catch (err: any) {
+                          setUploadResult({
+                            success: false,
+                            message: err.response?.data?.detail || err.message || 'Gagal mengunggah data.',
+                          });
+                        } finally {
+                          setUploading(false);
+                        }
+                      }}
+                      disabled={uploading}
+                      style={{
+                        flex: 1,
+                        padding: '10px 16px',
+                        background: 'var(--cds-primary)',
+                        color: '#ffffff',
+                        border: 'none',
+                        fontSize: '12px',
+                        fontWeight: '600',
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: '8px',
+                      }}
+                    >
+                      {uploading ? 'Mengunggah...' : 'Proses Impor'}
+                    </button>
+                    <button
+                      onClick={() => {
+                        setSelectedFile(null);
+                        setUploadResult(null);
+                      }}
+                      disabled={uploading}
+                      style={{
+                        padding: '10px 16px',
+                        background: 'transparent',
+                        color: 'var(--cds-text-primary)',
+                        border: '1px solid var(--cds-border-strong)',
+                        fontSize: '12px',
+                        fontWeight: '600',
+                        cursor: 'pointer',
+                      }}
+                    >
+                      Batal
+                    </button>
                   </div>
                 )}
-              </>
+
+                {uploadResult && (
+                  <div
+                    style={{
+                      padding: '12px',
+                      background: uploadResult.success ? '#e5f6ed' : '#fdf3f2',
+                      borderLeft: `4px solid ${uploadResult.success ? 'var(--cds-support-success)' : 'var(--cds-support-error)'}`,
+                      fontSize: '12px',
+                      color: 'var(--cds-text-primary)',
+                      lineHeight: '1.4',
+                    }}
+                  >
+                    <div style={{ fontWeight: '600', marginBottom: '4px' }}>
+                      {uploadResult.success ? 'Sukses' : 'Gagal'}
+                    </div>
+                    {uploadResult.message}
+                  </div>
+                )}
+              </div>
             )}
           </div>
         </>

@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { login } from '@/lib/api';
 import { saveToken, isAuthenticated } from '@/lib/auth';
+import CarbonLoader from '@/components/CarbonLoader';
 
 export default function LoginPage() {
   const router = useRouter();
@@ -15,6 +16,16 @@ export default function LoginPage() {
   useEffect(() => {
     if (isAuthenticated()) router.replace('/dashboard');
   }, [router]);
+
+  // Prevent duplicate submissions and show loading cursor during login
+  useEffect(() => {
+    if (loading) {
+      document.body.classList.add('loading-state');
+    } else {
+      document.body.classList.remove('loading-state');
+    }
+    return () => document.body.classList.remove('loading-state');
+  }, [loading]);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -104,10 +115,10 @@ export default function LoginPage() {
             style={{ padding: '12px', fontSize: '14px', marginTop: '8px' }}
           >
             {loading ? (
-              <>
-                <span style={loginStyles.spinner} />
-                Memvalidasi Kredensial...
-              </>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
+                <CarbonLoader small contrast />
+                <span>Memvalidasi Kredensial...</span>
+              </div>
             ) : (
               'Masuk ke Sistem'
             )}
@@ -207,15 +218,6 @@ const loginStyles: Record<string, React.CSSProperties> = {
     border: '1px solid #ffb3b3',
     borderLeft: '4px solid #da1e28',
     color: '#da1e28',
-  },
-  spinner: {
-    display: 'inline-block',
-    width: '14px',
-    height: '14px',
-    border: '2px solid rgba(255,255,255,0.3)',
-    borderTop: '2px solid white',
-    borderRadius: '50%',
-    animation: 'spin 0.7s linear infinite',
   },
   footer: {
     textAlign: 'center',

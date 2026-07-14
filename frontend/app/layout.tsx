@@ -5,7 +5,7 @@ import 'leaflet/dist/leaflet.css';
 export const metadata: Metadata = {
   title: 'SIG PTPN — Sistem Informasi Geografis Kebun Regional 7 Lampung',
   description:
-    'Dashboard Sistem Informasi Geografis (SIG) untuk pemantauan dan pengelolaan data kebun PTPN Regional 7 Lampung. Meliputi kebun Bergen, Kedaton, TUBU, Wabe, dan Wali.',
+    'Dashboard Sistem Informasi Geografis (SIG) untuk pemantauan dan pengelolaan data kebun PTPN Regional 7 Lampung. Meliputi kebun Bergen, Kedaton, TUBU, Way Berulu, dan Wali.',
   keywords: 'PTPN, SIG, GIS, kebun, Lampung, peta, karet, sawit',
 };
 

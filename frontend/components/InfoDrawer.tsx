@@ -12,7 +12,7 @@ interface InfoDrawerProps {
 export function getKebunDisplayName(name: string | null): string {
   if (!name) return '-';
   const norm = name.trim();
-  if (norm.toLowerCase() === 'wabe') return 'Way Belulu';
+  if (norm.toLowerCase() === 'wabe' || norm.toLowerCase() === 'way belulu') return 'Way Berulu';
   return norm;
 }
 

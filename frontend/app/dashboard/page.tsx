@@ -10,6 +10,7 @@ import StatsBar from '@/components/StatsBar';
 import InfoDrawer from '@/components/InfoDrawer';
 import SidePanel from '@/components/SidePanel';
 import type { ViewMode } from '@/components/MapView';
+import CarbonLoader from '@/components/CarbonLoader';
 
 // Dynamically import Leaflet map (client-side only, no SSR)
 const MapView = dynamic(() => import('@/components/MapView'), { ssr: false });
@@ -45,37 +46,80 @@ export default function DashboardPage() {
     }
   }, [router]);
 
-  // Load initial data in parallel
+  // Toggle loading class on body during initial dashboard API fetching
   useEffect(() => {
-    async function loadData() {
-      try {
-        setLoading(true);
-        const [geoData, statsData, listData] = await Promise.all([
-          fetchKebun(),
-          fetchStats(),
-          fetchKebunList(),
-        ]);
-        setGeojsonData(geoData);
-        setStats(statsData);
-        setKebunList(listData);
-        setActiveKebun(listData); // All kebun active by default
-      } catch (err: unknown) {
-        const msg =
-          (err as { response?: { data?: { detail?: string } } })?.response?.data
-            ?.detail || 'Gagal memuat data. Periksa koneksi ke server.';
-        setError(msg);
-      } finally {
-        setLoading(false);
-      }
+    if (loading) {
+      document.body.classList.add('loading-state');
+    } else {
+      document.body.classList.remove('loading-state');
     }
-    loadData();
+    return () => document.body.classList.remove('loading-state');
+  }, [loading]);
+
+  // Load initial data in parallel
+  const loadData = useCallback(async () => {
+    try {
+      setLoading(true);
+      const [geoData, statsData, listData] = await Promise.all([
+        fetchKebun(),
+        fetchStats(),
+        fetchKebunList(),
+      ]);
+      // Sort kebun names: alphabetical order, but KSO is placed at the very bottom
+      const sortedList = [...listData].sort((a, b) => a.localeCompare(b));
+      setGeojsonData(geoData);
+      setStats(statsData);
+      setKebunList(sortedList);
+      
+      // Preserve active selection status, otherwise set all active by default
+      setActiveKebun((prev) => {
+        if (prev.length > 0) {
+          return prev.filter((k) => sortedList.includes(k));
+        }
+        return sortedList;
+      });
+    } catch (err: unknown) {
+      const msg =
+        (err as { response?: { data?: { detail?: string } } })?.response?.data
+          ?.detail || 'Gagal memuat data. Periksa koneksi ke server.';
+      setError(msg);
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
-  function handleToggleKebun(kebun: string) {
+  useEffect(() => {
+    loadData();
+  }, [loadData]);
+
+  const handleToggleKebun = useCallback((kebun: string) => {
     setActiveKebun((prev) =>
       prev.includes(kebun) ? prev.filter((k) => k !== kebun) : [...prev, kebun]
     );
-  }
+  }, []);
+
+  const handleHighlightKebun = useCallback((kebun: string) => {
+    if (!mapInstanceRef.current || !geojsonData) return;
+    const kebunFeatures = geojsonData.features.filter(
+      (f) => f.properties.kebun && f.properties.kebun.toLowerCase() === kebun.toLowerCase()
+    );
+    if (kebunFeatures.length > 0) {
+      const L = require('leaflet');
+      try {
+        const tempLayer = L.geoJSON({ type: 'FeatureCollection', features: kebunFeatures });
+        const bounds = tempLayer.getBounds();
+        if (bounds.isValid()) {
+          mapInstanceRef.current.flyToBounds(bounds, { 
+            padding: [60, 60],
+            animate: true,
+            duration: 1.5 // 1.5 seconds smooth flying zoom transition
+          });
+        }
+      } catch (err) {
+        console.error('Error fitting bounds for kebun:', err);
+      }
+    }
+  }, [geojsonData]);
 
   const handleFeatureClick = useCallback((feature: GeoJSONFeature) => {
     setSelectedKebunAnalysis(null);
@@ -231,6 +275,8 @@ export default function DashboardPage() {
           kebunList={kebunList}
           activeKebun={activeKebun}
           onToggleKebun={handleToggleKebun}
+          onHighlightKebun={handleHighlightKebun}
+          onUploadSuccess={loadData}
           stats={stats}
           loading={loading}
           onLogout={handleLogout}
@@ -296,7 +342,7 @@ export default function DashboardPage() {
           )}
 
           {/* Map View */}
-          {!loading && (
+          {!loading ? (
             <MapView
               geojsonData={geojsonData}
               onFeatureClick={handleFeatureClick}
@@ -306,6 +352,8 @@ export default function DashboardPage() {
               detailLevel={detailLevel}
               mapInstanceRef={mapInstanceRef}
             />
+          ) : (
+            <CarbonLoader overlay description="Memuat Peta & Data SIG..." />
           )}
 
           {/* Top-right floating Stats panel (Carbon light style) */}

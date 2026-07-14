@@ -26,12 +26,13 @@
   --cds-support-info: #0043ce;        /* Carbon info */
   --cds-support-success: #24a148;     /* Carbon success */
 
-  /* Kebun Color Map */
-  --color-bergen: #46A5DD;
-  --color-kedaton: #1CC729;
-  --color-tubu: #F5A623;
-  --color-wabe: #A855F7;
-  --color-wali: #848684;
+  /* Kebun Color Map (Color-blind Friendly Okabe-Ito Palette) */
+  --color-bergen: #0072B2;
+  --color-kedaton: #009E73;
+  --color-tubu: #E69F00;
+  --color-wayberulu: #56B4E9;
+  --color-wali: #D55E00;
+  --color-kso: #CC79A7;
 
   /* Spacing Grid (8px System) */
   --spacing-xxs: 4px;
@@ -279,4 +280,101 @@ a {
 
 .animate-slide-up {
   animation: slideUp 0.25s cubic-bezier(0.2, 0, 0.38, 0.9) forwards;
+}
+
+/* ============================================================
+   IBM Carbon Design System Loading Spinner Styles
+   ============================================================ */
+
+@keyframes cds-rotate {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
+.cds--loading {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  width: 88px;
+  height: 88px;
+}
+
+.cds--loading--small {
+  width: 24px;
+  height: 24px;
+}
+
+.cds--loading__svg {
+  width: 100%;
+  height: 100%;
+  transform-origin: 50% 50%;
+  animation: cds-rotate 0.9s cubic-bezier(0.5, 0, 0.5, 1) infinite;
+}
+
+.cds--loading__track {
+  fill: none;
+  stroke: var(--cds-border);
+  stroke-width: 6;
+  opacity: 0.3;
+}
+
+.cds--loading--small .cds--loading__track {
+  stroke-width: 10;
+}
+
+.cds--loading__stroke {
+  fill: none;
+  stroke: var(--cds-primary);
+  stroke-width: 6;
+  stroke-dasharray: 240;
+  stroke-dashoffset: 60;
+  stroke-linecap: square;
+}
+
+.cds--loading--small .cds--loading__stroke {
+  stroke-width: 10;
+}
+
+.cds--loading--contrast .cds--loading__track {
+  stroke: rgba(255, 255, 255, 0.3);
+}
+
+.cds--loading--contrast .cds--loading__stroke {
+  stroke: #ffffff;
+}
+
+/* Leaflet Map Hover Tooltip overrides (IBM Carbon Style) */
+.leaflet-tooltip.carbon-map-tooltip {
+  background: #ffffff !important;
+  border: 1px solid var(--cds-border-strong) !important;
+  border-radius: 0px !important;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1) !important;
+  padding: 0px !important; /* Managed internally by our HTML container for fine margin spacing */
+  color: var(--cds-text-primary) !important;
+}
+
+.leaflet-tooltip-left.carbon-map-tooltip::before {
+  border-left-color: var(--cds-border-strong) !important;
+}
+.leaflet-tooltip-right.carbon-map-tooltip::before {
+  border-right-color: var(--cds-border-strong) !important;
+}
+.leaflet-tooltip-top.carbon-map-tooltip::before {
+  border-top-color: var(--cds-border-strong) !important;
+}
+.leaflet-tooltip-bottom.carbon-map-tooltip::before {
+  border-bottom-color: var(--cds-border-strong) !important;
+}
+
+/* Global Loading Cursor and Click Prevention */
+body.loading-state,
+body.loading-state * {
+  cursor: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24'><circle cx='12' cy='12' r='9' fill='none' stroke='%23e0e0e0' stroke-width='3'/><circle cx='12' cy='12' r='9' fill='none' stroke='%23006A4E' stroke-width='3' stroke-dasharray='40' stroke-dashoffset='12'/></svg>") 12 12, wait !important;
+  pointer-events: none !important;
 }

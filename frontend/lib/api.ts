@@ -57,4 +57,20 @@ export async function fetchKebunList(): Promise<string[]> {
   return res.data.kebun;
 }
 
+export async function uploadGeoJSON(file: File): Promise<{
+  status: string;
+  message: string;
+  imported: number;
+  updated: number;
+}> {
+  const formData = new FormData();
+  formData.append('file', file);
+  const res = await api.post('/api/kebun/upload-geojson', formData, {
+    headers: {
+      'Content-Type': 'multipart/form-data',
+    },
+  });
+  return res.data;
+}
+
 export default api;

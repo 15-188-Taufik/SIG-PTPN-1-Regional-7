@@ -4,22 +4,22 @@ import { useEffect, useRef, useState } from 'react';
 import type { Map } from 'leaflet';
 import type { GeoJSONFeature, FeatureCollection } from '@/types/kebun';
 import * as turf from '@turf/turf';
+import CarbonLoader from './CarbonLoader';
 
 export type ViewMode = 'default' | 'productivity' | 'age' | 'density';
 
 const KEBUN_COLORS: Record<string, string> = {
-  Bergen: '#0f62fe', // Carbon Blue
-  Kedaton: '#006A4E', // PTPN Green
-  KSO: '#11a391', // Carbon Teal
-  TUBU: '#f5a623', // Carbon Orange
-  Wabe: '#8a3ffc', // Carbon Purple
-  Wali: '#6f6f6f', // Carbon Gray
+  'Unit Bekri': '#0072B2',
+  'Unit Bergen': '#009E73',
+  'Unit Rejosari': '#CC79A7',
+  'Unit Way Berulu': '#E69F00',
+  'Unit Kedaton': '#56B4E9',
 };
 
 export function getKebunDisplayName(name: string | null): string {
   if (!name) return '-';
   const norm = name.trim();
-  if (norm.toLowerCase() === 'wabe') return 'Way Belulu';
+  if (norm.toLowerCase() === 'wabe') return 'Way Berulu';
   return norm;
 }
 
@@ -29,6 +29,29 @@ function getKebunColor(kebun: string | null): string {
     (k) => k.toLowerCase() === kebun.toLowerCase()
   );
   return key ? KEBUN_COLORS[key] : '#848684';
+}
+
+function getColorName(hex: string): string {
+  const norm = hex.toUpperCase();
+  if (norm === '#0072B2') return 'Biru (Okabe-Ito Blue)';
+  if (norm === '#009E73') return 'Hijau Kebiruan (Okabe-Ito Green)';
+  if (norm === '#CC79A7') return 'Merah Muda Keunguan (Okabe-Ito Reddish Purple)';
+  if (norm === '#E69F00') return 'Jingga/Orange (Okabe-Ito Orange)';
+  if (norm === '#56B4E9') return 'Biru Langit (Okabe-Ito Sky Blue)';
+  if (norm === '#D55E00') return 'Merah Jingga/Vermillion (Okabe-Ito Vermillion)';
+  
+  // Analysis colors
+  if (norm === '#22C55E') return 'Hijau (Sangat Tinggi / Optimal)';
+  if (norm === '#A3E635') return 'Hijau Muda (Tinggi)';
+  if (norm === '#FACC15') return 'Kuning (Sedang)';
+  if (norm === '#F97316') return 'Jingga/Orange (Rendah / TM Tua)';
+  if (norm === '#EF4444') return 'Merah (Sangat Rendah / Kritis)';
+  if (norm === '#A8A8A8') return 'Abu-abu (Tidak Ada Data)';
+  if (norm === '#38BDF8') return 'Biru Muda (Muda / TBM)';
+  if (norm === '#15803D') return 'Hijau Tua (TM Prima)';
+  if (norm === '#A855F7') return 'Ungu (Padat / Rapat)';
+  
+  return hex;
 }
 
 function getFeatureColor(
@@ -111,6 +134,19 @@ export default function MapView({
   detailLevel,
   mapInstanceRef,
 }: MapViewProps) {
+  const [isProcessing, setIsProcessing] = useState(true);
+  const isFirstRenderRef = useRef(true);
+
+  // Toggle loading class on body when rendering map vector layers
+  useEffect(() => {
+    if (isProcessing) {
+      document.body.classList.add('loading-state');
+    } else {
+      document.body.classList.remove('loading-state');
+    }
+    return () => document.body.classList.remove('loading-state');
+  }, [isProcessing]);
+
   const [mapType, setMapType] = useState<'silver' | 'standard' | 'satellite' | 'dark'>('silver');
   const [roadsOpacity, setRoadsOpacity] = useState(0.4);
   const [placesOpacity, setPlacesOpacity] = useState(0.4);
@@ -236,175 +272,241 @@ export default function MapView({
   useEffect(() => {
     if (!mapRef.current || !geojsonData) return;
 
+    setIsProcessing(true);
+
     const L = require('leaflet');
 
-    // Remove existing GeoJSON layer
-    if (geojsonLayerRef.current) {
-      mapRef.current.removeLayer(geojsonLayerRef.current);
-      geojsonLayerRef.current = null;
-    }
+    const timer = setTimeout(() => {
+      const currentMap = mapRef.current;
+      if (!currentMap) return;
+      
+      try {
+        // Remove existing GeoJSON layer
+        if (geojsonLayerRef.current) {
+          currentMap.removeLayer(geojsonLayerRef.current);
+          geojsonLayerRef.current = null;
+        }
 
-    // Filter by active kebun
-    const filteredFeatures =
-      activeKebun.length === 0
-        ? geojsonData.features
-        : geojsonData.features.filter((f) =>
-            activeKebun.includes(f.properties.kebun || '')
+        // Filter by active kebun
+        const filteredFeatures =
+          activeKebun.length === 0
+            ? geojsonData.features
+            : geojsonData.features.filter((f) =>
+                activeKebun.includes(f.properties.kebun || '')
+              );
+
+        if (filteredFeatures.length === 0) {
+          setIsProcessing(false);
+          isFirstRenderRef.current = false;
+          return;
+        }
+
+        // Pre-calculate aggregate values per kebun
+        const kebunAggregates: Record<string, { l_gis: number; l_rkap: number; populasi: number; protas_24: number }> = {};
+        filteredFeatures.forEach((feat) => {
+          const k = feat.properties.kebun || 'Unknown';
+          if (!kebunAggregates[k]) {
+            kebunAggregates[k] = { l_gis: 0, l_rkap: 0, populasi: 0, protas_24: 0 };
+          }
+          const p = feat.properties;
+          kebunAggregates[k].l_gis += p.l_gis || 0;
+          kebunAggregates[k].l_rkap += p.l_rkap || 0;
+          kebunAggregates[k].populasi += p.populasi || 0;
+          kebunAggregates[k].protas_24 += p.protas_24 || p.protas_23 || p.protas_22 || p.protas_21 || 0;
+        });
+
+        // Group features by kebun name to dissolve/union
+        const kebunGroups: Record<string, any[]> = {};
+        filteredFeatures.forEach((feat) => {
+          const k = feat.properties.kebun || 'Unknown';
+          if (!kebunGroups[k]) {
+            kebunGroups[k] = [];
+          }
+          kebunGroups[k].push(feat);
+        });
+
+        const outlineFeatures: any[] = [];
+        Object.entries(kebunGroups).forEach(([kebunName, feats]) => {
+          try {
+            let dissolved: any = null;
+            if (feats.length === 1) {
+              dissolved = JSON.parse(JSON.stringify(feats[0]));
+            } else if (feats.length > 1) {
+              const fc = turf.featureCollection(feats);
+              dissolved = turf.union(fc as any);
+            }
+
+            if (dissolved) {
+              const agg = kebunAggregates[kebunName] || { l_gis: 1, l_rkap: 0, populasi: 0, protas_24: 0 };
+              const pYears = feats.map((f) => {
+                const yr = f.properties.thn_tanam;
+                if (!yr) return null;
+                const num = parseInt(yr.toString().replace(/[^0-9]/g, ''), 10);
+                return isNaN(num) ? null : num;
+              }).filter(Boolean) as number[];
+              const avgYr = pYears.length > 0 ? Math.round(pYears.reduce((a, b) => a + b, 0) / pYears.length) : null;
+
+              dissolved.properties = {
+                kebun: kebunName,
+                l_gis: agg.l_gis,
+                l_rkap: agg.l_rkap,
+                populasi: agg.populasi,
+                protas_24: agg.protas_24,
+                thn_tanam: avgYr ? `${avgYr}` : null,
+              };
+              outlineFeatures.push(dissolved);
+            }
+          } catch (err) {
+            console.error(`Failed to union/dissolve features for kebun ${kebunName}:`, err);
+          }
+        });
+
+        let outlinesLayerInstance: any = null;
+        let layerGroup: any = null;
+
+        const effectiveDetailLevel = viewMode === 'default' ? 'kebun' : detailLevel;
+
+        if (effectiveDetailLevel === 'block') {
+          const blocksLayer = L.geoJSON(
+            { type: 'FeatureCollection', features: filteredFeatures },
+            {
+              style: (feature: GeoJSONFeature) => {
+                const color = getFeatureColor(feature, viewMode, showEmptyData);
+                return {
+                  fillColor: color,
+                  fillOpacity: 0.95,
+                  stroke: true,
+                  color: color,
+                  weight: 0.8,
+                  opacity: 1,
+                };
+              },
+              onEachFeature: (feature: GeoJSONFeature, lyr: any) => {
+                const p = feature.properties;
+                const kebunName = getKebunDisplayName(p.kebun);
+                const afdelingName = p.afdeling ? `Afd ${p.afdeling}` : 'Afdeling -';
+                const blockCode = p.kode_blok || p.no_polygon || 'Blok';
+                const region = [p.desa, p.kecamatan, p.kabupaten].filter(Boolean).join(', ');
+
+                const tooltipHtml = `
+                  <div style="font-family: 'IBM Plex Sans', sans-serif; padding: 6px 10px; font-size: 11px; line-height: 1.4; color: #161616;">
+                    <div style="font-weight: 700; color: var(--cds-primary); margin-bottom: 2px;">
+                      Kebun ${kebunName} &middot; ${afdelingName}
+                    </div>
+                    <div style="font-weight: 600; color: #525252; margin-bottom: 4px;">
+                      Blok: ${blockCode}
+                    </div>
+                    ${region ? `<div style="font-size: 10px; color: #8d8d8d; border-top: 1px solid #e0e0e0; padding-top: 3px; margin-top: 3px;">${region}</div>` : ''}
+                  </div>
+                `;
+
+                lyr.bindTooltip(tooltipHtml, {
+                  sticky: true,
+                  direction: 'auto',
+                  className: 'carbon-map-tooltip',
+                  opacity: 0.95,
+                });
+
+                lyr.on({
+                  mouseover: () => {
+                    lyr.setStyle({ fillOpacity: 1.0 });
+                    lyr.bringToFront();
+                    if (outlinesLayerInstance) {
+                      outlinesLayerInstance.bringToFront();
+                    }
+                  },
+                  mouseout: () => {
+                    blocksLayer.resetStyle(lyr);
+                  },
+                  click: () => {
+                    onFeatureClick(feature);
+                  },
+                });
+              },
+            }
           );
 
-    if (filteredFeatures.length === 0) return;
+          outlinesLayerInstance = L.geoJSON(
+            { type: 'FeatureCollection', features: outlineFeatures },
+            {
+              style: () => ({
+                fill: false,
+                color: '#262626',
+                weight: 1.2,
+                opacity: 1,
+              }),
+              interactive: false,
+            }
+          );
 
-    // Pre-calculate aggregate values per kebun
-    const kebunAggregates: Record<string, { l_gis: number; l_rkap: number; populasi: number; protas_24: number }> = {};
-    filteredFeatures.forEach((feat) => {
-      const k = feat.properties.kebun || 'Unknown';
-      if (!kebunAggregates[k]) {
-        kebunAggregates[k] = { l_gis: 0, l_rkap: 0, populasi: 0, protas_24: 0 };
-      }
-      const p = feat.properties;
-      kebunAggregates[k].l_gis += p.l_gis || 0;
-      kebunAggregates[k].l_rkap += p.l_rkap || 0;
-      kebunAggregates[k].populasi += p.populasi || 0;
-      kebunAggregates[k].protas_24 += p.protas_24 || p.protas_23 || p.protas_22 || p.protas_21 || 0;
-    });
+          layerGroup = L.layerGroup([blocksLayer, outlinesLayerInstance]).addTo(currentMap);
+        } else {
+          // Per Kebun mode: outline features represent the entire kebun as solid interactive shapes
+          outlinesLayerInstance = L.geoJSON(
+            { type: 'FeatureCollection', features: outlineFeatures },
+            {
+              style: (feature: GeoJSONFeature) => {
+                const color = getFeatureColor(feature, viewMode, showEmptyData);
+                return {
+                  fillColor: color,
+                  fillOpacity: 0.95,
+                  stroke: true,
+                  color: '#262626', // Outlines always drawn in charcoal
+                  weight: 1.2,
+                  opacity: 1,
+                };
+              },
+              onEachFeature: (feature: GeoJSONFeature, lyr: any) => {
+                const p = feature.properties;
+                const kebunName = getKebunDisplayName(p.kebun);
 
-    // Group features by kebun name to dissolve/union
-    const kebunGroups: Record<string, any[]> = {};
-    filteredFeatures.forEach((feat) => {
-      const k = feat.properties.kebun || 'Unknown';
-      if (!kebunGroups[k]) {
-        kebunGroups[k] = [];
-      }
-      kebunGroups[k].push(feat);
-    });
+                const tooltipHtml = `
+                  <div style="font-family: 'IBM Plex Sans', sans-serif; padding: 6px 10px; font-size: 11px; line-height: 1.4; color: #161616;">
+                    <div style="font-weight: 700; color: var(--cds-primary);">
+                      Kebun ${kebunName}
+                    </div>
+                    <div style="font-size: 10px; color: #525252; margin-top: 2px;">
+                      Klik untuk analisis detail
+                    </div>
+                  </div>
+                `;
 
-    const outlineFeatures: any[] = [];
-    Object.entries(kebunGroups).forEach(([kebunName, feats]) => {
-      try {
-        let dissolved: any = null;
-        if (feats.length === 1) {
-          dissolved = JSON.parse(JSON.stringify(feats[0]));
-        } else if (feats.length > 1) {
-          const fc = turf.featureCollection(feats);
-          dissolved = turf.union(fc as any);
+                lyr.bindTooltip(tooltipHtml, {
+                  sticky: true,
+                  direction: 'auto',
+                  className: 'carbon-map-tooltip',
+                  opacity: 0.95,
+                });
+
+                lyr.on({
+                  mouseover: () => {
+                    lyr.setStyle({ fillOpacity: 1.0 });
+                    lyr.bringToFront();
+                  },
+                  mouseout: () => {
+                    outlinesLayerInstance.resetStyle(lyr);
+                  },
+                  click: () => {
+                    onFeatureClick(feature);
+                  },
+                });
+              },
+            }
+          );
+
+          layerGroup = L.layerGroup([outlinesLayerInstance]).addTo(currentMap);
         }
 
-        if (dissolved) {
-          const agg = kebunAggregates[kebunName] || { l_gis: 1, l_rkap: 0, populasi: 0, protas_24: 0 };
-          const pYears = feats.map((f) => {
-            const yr = f.properties.thn_tanam;
-            if (!yr) return null;
-            const num = parseInt(yr.toString().replace(/[^0-9]/g, ''), 10);
-            return isNaN(num) ? null : num;
-          }).filter(Boolean) as number[];
-          const avgYr = pYears.length > 0 ? Math.round(pYears.reduce((a, b) => a + b, 0) / pYears.length) : null;
-
-          dissolved.properties = {
-            kebun: kebunName,
-            l_gis: agg.l_gis,
-            l_rkap: agg.l_rkap,
-            populasi: agg.populasi,
-            protas_24: agg.protas_24,
-            thn_tanam: avgYr ? `${avgYr}` : null,
-          };
-          outlineFeatures.push(dissolved);
-        }
+        geojsonLayerRef.current = layerGroup;
       } catch (err) {
-        console.error(`Failed to union/dissolve features for kebun ${kebunName}:`, err);
+        console.error('Error rendering layers:', err);
+      } finally {
+        setIsProcessing(false);
+        isFirstRenderRef.current = false;
       }
-    });
+    }, 100); // Tiny timeout yields thread execution, allowing loading state to mount & paint
 
-    let outlinesLayerInstance: any = null;
-    let layerGroup: any = null;
-
-    const effectiveDetailLevel = viewMode === 'default' ? 'kebun' : detailLevel;
-
-    if (effectiveDetailLevel === 'block') {
-      const blocksLayer = L.geoJSON(
-        { type: 'FeatureCollection', features: filteredFeatures },
-        {
-          style: (feature: GeoJSONFeature) => {
-            const color = getFeatureColor(feature, viewMode, showEmptyData);
-            return {
-              fillColor: color,
-              fillOpacity: 0.95,
-              stroke: true,
-              color: color,
-              weight: 0.8,
-              opacity: 1,
-            };
-          },
-          onEachFeature: (feature: GeoJSONFeature, lyr: any) => {
-            lyr.on({
-              mouseover: () => {
-                lyr.setStyle({ fillOpacity: 1.0 });
-                lyr.bringToFront();
-                if (outlinesLayerInstance) {
-                  outlinesLayerInstance.bringToFront();
-                }
-              },
-              mouseout: () => {
-                blocksLayer.resetStyle(lyr);
-              },
-              click: () => {
-                onFeatureClick(feature);
-              },
-            });
-          },
-        }
-      );
-
-      outlinesLayerInstance = L.geoJSON(
-        { type: 'FeatureCollection', features: outlineFeatures },
-        {
-          style: () => ({
-            fill: false,
-            color: '#262626',
-            weight: 1.2,
-            opacity: 1,
-          }),
-          interactive: false,
-        }
-      );
-
-      layerGroup = L.layerGroup([blocksLayer, outlinesLayerInstance]).addTo(mapRef.current);
-    } else {
-      // Per Kebun mode: outline features represent the entire kebun as solid interactive shapes
-      outlinesLayerInstance = L.geoJSON(
-        { type: 'FeatureCollection', features: outlineFeatures },
-        {
-          style: (feature: GeoJSONFeature) => {
-            const color = getFeatureColor(feature, viewMode, showEmptyData);
-            return {
-              fillColor: color,
-              fillOpacity: 0.95,
-              stroke: true,
-              color: '#262626', // Outlines always drawn in charcoal
-              weight: 1.2,
-              opacity: 1,
-            };
-          },
-          onEachFeature: (feature: GeoJSONFeature, lyr: any) => {
-            lyr.on({
-              mouseover: () => {
-                lyr.setStyle({ fillOpacity: 1.0 });
-                lyr.bringToFront();
-              },
-              mouseout: () => {
-                outlinesLayerInstance.resetStyle(lyr);
-              },
-              click: () => {
-                onFeatureClick(feature);
-              },
-            });
-          },
-        }
-      );
-
-      layerGroup = L.layerGroup([outlinesLayerInstance]).addTo(mapRef.current);
-    }
-
-    geojsonLayerRef.current = layerGroup;
+    return () => clearTimeout(timer);
   }, [geojsonData, activeKebun, viewMode, showEmptyData, detailLevel, onFeatureClick]);
 
   return (
@@ -638,7 +740,10 @@ export default function MapView({
           {viewMode === 'default' &&
             Object.entries(KEBUN_COLORS).map(([name, color]) => (
               <div key={name} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <div style={{ width: '10px', height: '10px', borderRadius: '0px', background: color }} />
+                <div
+                  style={{ width: '10px', height: '10px', borderRadius: '0px', background: color, cursor: 'help' }}
+                  title={`Warna: ${getColorName(color)}`}
+                />
                 <span style={{ color: 'var(--cds-text-secondary)' }}>Kebun {getKebunDisplayName(name)}</span>
               </div>
             ))}
@@ -652,7 +757,10 @@ export default function MapView({
             { label: 'Tidak Ada Data / Kosong', color: '#a8a8a8' },
           ].map((item, idx) => (
             <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <div style={{ width: '10px', height: '10px', borderRadius: '0px', background: item.color }} />
+              <div
+                style={{ width: '10px', height: '10px', borderRadius: '0px', background: item.color, cursor: 'help' }}
+                title={`Warna: ${getColorName(item.color)}`}
+              />
               <span style={{ color: 'var(--cds-text-secondary)' }}>{item.label}</span>
             </div>
           ))}
@@ -665,7 +773,10 @@ export default function MapView({
             { label: 'Tidak Ada Data', color: '#a8a8a8' },
           ].map((item, idx) => (
             <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <div style={{ width: '10px', height: '10px', borderRadius: '0px', background: item.color }} />
+              <div
+                style={{ width: '10px', height: '10px', borderRadius: '0px', background: item.color, cursor: 'help' }}
+                title={`Warna: ${getColorName(item.color)}`}
+              />
               <span style={{ color: 'var(--cds-text-secondary)' }}>{item.label}</span>
             </div>
           ))}
@@ -678,12 +789,54 @@ export default function MapView({
             { label: 'Tidak Ada Data', color: '#a8a8a8' },
           ].map((item, idx) => (
             <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <div style={{ width: '10px', height: '10px', borderRadius: '0px', background: item.color }} />
+              <div
+                style={{ width: '10px', height: '10px', borderRadius: '0px', background: item.color, cursor: 'help' }}
+                title={`Warna: ${getColorName(item.color)}`}
+              />
               <span style={{ color: 'var(--cds-text-secondary)' }}>{item.label}</span>
             </div>
           ))}
         </div>
       </div>
+
+      {/* Initial full overlay loading state */}
+      {isProcessing && isFirstRenderRef.current && (
+        <CarbonLoader overlay description="Menggambar Peta Wilayah..." />
+      )}
+
+      {/* Busy indicator in the top-right during updates */}
+      {isProcessing && !isFirstRenderRef.current && (
+        <div
+          style={{
+            position: 'absolute',
+            top: '88px', // Float below StatsBar (at top 16px, height ~56px)
+            right: '16px',
+            zIndex: 1000,
+            background: '#ffffff',
+            border: '1px solid var(--cds-border)',
+            padding: '8px 12px',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px',
+            boxShadow: '0 2px 6px rgba(0,0,0,0.06)',
+            fontFamily: "'IBM Plex Sans', sans-serif",
+            animation: 'fadeIn 0.2s ease-in-out',
+          }}
+        >
+          <CarbonLoader small />
+          <span
+            style={{
+              fontSize: '11px',
+              fontWeight: '600',
+              color: 'var(--cds-text-secondary)',
+              textTransform: 'uppercase',
+              letterSpacing: '0.04em',
+            }}
+          >
+            Memproses Analisis...
+          </span>
+        </div>
+      )}
     </div>
   );
 }
