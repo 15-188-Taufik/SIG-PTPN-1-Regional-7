@@ -96,6 +96,73 @@ def process_feature(feature: dict, source_file: str) -> tuple | None:
             val = safe_int(val)
         elif val == "" or val == "null":
             val = None
+            
+        if db_col == "kebun":
+            sf_lower = source_file.lower()
+            if "bergen" in sf_lower:
+                val = "Unit Bergen"
+            elif "kedaton" in sf_lower:
+                val = "Unit Kedaton"
+            elif "tubu" in sf_lower:
+                val = "Unit Way Berulu"
+            elif "wabe" in sf_lower:
+                val = "Unit Bekri"
+            elif "wali" in sf_lower:
+                val = "Unit Rejosari"
+            else:
+                val = "Unit Bergen"
+
+        elif db_col == "afdeling":
+            orig_afdeling = str(val or "").strip()
+            sf_lower = source_file.lower()
+            
+            def parse_afd_idx(s_val: str) -> int:
+                s = s_val.lower()
+                if "vi" in s: return 6
+                if "iv" in s: return 4
+                if "v" in s: return 5
+                if "iii" in s: return 3
+                if "ii" in s: return 2
+                if "i" in s: return 1
+                if "a" in s: return 1
+                if "b" in s: return 2
+                if "c" in s: return 3
+                if "d" in s: return 4
+                for char in s:
+                    if char.isdigit():
+                        v = int(char)
+                        if 1 <= v <= 9: return v
+                return 1
+
+            idx = parse_afd_idx(orig_afdeling)
+
+            if "bergen" in sf_lower:
+                if idx == 1: val = "Afdeling I"
+                elif idx == 2: val = "Afdeling II"
+                else: val = "Afdeling III"
+            elif "kedaton" in sf_lower:
+                if idx == 1: val = "Afdeling A"
+                elif idx == 2: val = "Afdeling B"
+                elif idx == 3: val = "Afdeling C"
+                else: val = "Afdeling D"
+            elif "tubu" in sf_lower:
+                if idx == 1: val = "Afdeling A"
+                elif idx == 2: val = "Afdeling B"
+                else: val = "Afdeling C"
+            elif "wabe" in sf_lower:
+                if idx == 1: val = "Afdeling I"
+                elif idx == 2: val = "Afdeling II"
+                elif idx == 3: val = "Afdeling III"
+                else: val = "Afdeling IV"
+            elif "wali" in sf_lower:
+                if idx == 1: val = "Afdeling I"
+                elif idx == 2: val = "Afdeling II"
+                elif idx == 3: val = "Afdeling III"
+                elif idx == 4: val = "Afdeling IV"
+                else: val = "Afdeling V"
+            else:
+                val = orig_afdeling
+
         row.append(val)
 
     # Tambah geometri sebagai string GeoJSON untuk ST_GeomFromGeoJSON
@@ -130,8 +197,8 @@ def import_file(conn, filepath: Path):
     # geom menggunakan fungsi PostGIS
     insert_sql = f"""
         INSERT INTO blok_kebun ({', '.join(DB_COLUMNS)})
-        VALUES ({placeholders_non_geom}, ST_SetSRID(ST_GeomFromGeoJSON(%s), 4326), %s)
-        ON CONFLICT (no_polygon) DO UPDATE SET
+        VALUES ({placeholders_non_geom}, ST_Multi(ST_Force2D(ST_SetSRID(ST_GeomFromGeoJSON(%s), 4326))), %s)
+        ON CONFLICT (kebun, no_polygon) DO UPDATE SET
             kebun = EXCLUDED.kebun,
             l_gis = EXCLUDED.l_gis,
             status = EXCLUDED.status,

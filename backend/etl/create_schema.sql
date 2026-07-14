@@ -15,7 +15,7 @@ CREATE TABLE blok_kebun (
     -- Identitas blok
     kebun         TEXT NOT NULL,
     kode_blok     TEXT,
-    no_polygon    TEXT UNIQUE,
+    no_polygon    TEXT,
     no_aset       TEXT,
     afdeling      TEXT,
     -- Komoditi & budidaya
@@ -46,7 +46,8 @@ CREATE TABLE blok_kebun (
     geom          GEOMETRY(MultiPolygon, 4326) NOT NULL,
     -- Metadata import
     source_file   TEXT,
-    imported_at   TIMESTAMPTZ DEFAULT NOW()
+    imported_at   TIMESTAMPTZ DEFAULT NOW(),
+    CONSTRAINT uq_kebun_no_polygon UNIQUE (kebun, no_polygon)
 );
 
 -- 4. Indeks spasial (WAJIB untuk performa kueri geospasial)

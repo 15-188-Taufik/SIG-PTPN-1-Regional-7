@@ -39,7 +39,7 @@ class BlokKebun(Base):
     kat_als_hk = Column(Text)
     status_kpm = Column(Text)
     # Geometri spasial
-    geom = Column(Geometry("MULTIPOLYGON", srid=4326), nullable=False)
+    geom = Column(Geometry("MULTIPOLYGON", srid=4326, spatial_index=True), nullable=False)
     # Metadata
     source_file = Column(Text)
     imported_at = Column(TIMESTAMP, server_default=func.now())
