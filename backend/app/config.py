@@ -14,10 +14,22 @@ class Settings(BaseSettings):
     ADMIN_PASSWORD: str = "lampung2024"
 
     def get_cors_origins(self) -> List[str]:
-        try:
-            return json.loads(self.CORS_ORIGINS)
-        except Exception:
-            return [self.CORS_ORIGINS]
+        val = self.CORS_ORIGINS.strip()
+        if not val:
+            return []
+        # Handle JSON array format
+        if val.startswith("[") and val.endswith("]"):
+            try:
+                parsed = json.loads(val)
+                if isinstance(parsed, list):
+                    return [str(x).strip() for x in parsed]
+            except Exception:
+                pass
+        # Handle comma-separated format
+        if "," in val:
+            return [x.strip() for x in val.split(",") if x.strip()]
+        # Fallback to single string
+        return [val]
 
     model_config = {"env_file": ".env", "extra": "ignore"}
 
