@@ -73,4 +73,12 @@ export async function uploadGeoJSON(file: File): Promise<{
   return res.data;
 }
 
+export async function fetchBlokHistory(blokId: number): Promise<{
+  pemeliharaan: any[];
+  pemupukan: any[];
+}> {
+  const res = await api.get(`/api/kebun/${blokId}/history`);
+  return res.data;
+}
+
 export default api;

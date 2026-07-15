@@ -1,6 +1,8 @@
 'use client';
 
+import { useState, useEffect } from 'react';
 import { GeoJSONFeature, FeatureCollection } from '@/types/kebun';
+import { fetchBlokHistory } from '@/lib/api';
 
 interface InfoDrawerProps {
   feature: GeoJSONFeature | null;
@@ -23,6 +25,30 @@ const STATUS_LABELS: Record<string, string> = {
 };
 
 export default function InfoDrawer({ feature, kebunName, geojsonData, onClose }: InfoDrawerProps) {
+  const [history, setHistory] = useState<{
+    pemeliharaan: any[];
+    pemupukan: any[];
+  } | null>(null);
+  const [loadingHistory, setLoadingHistory] = useState(false);
+
+  useEffect(() => {
+    if (feature && feature.properties && feature.properties.id) {
+      setLoadingHistory(true);
+      fetchBlokHistory(feature.properties.id)
+        .then((data) => {
+          setHistory(data);
+        })
+        .catch((err) => {
+          console.error('Failed to fetch block history:', err);
+        })
+        .finally(() => {
+          setLoadingHistory(false);
+        });
+    } else {
+      setHistory(null);
+    }
+  }, [feature]);
+
   if (!feature && !kebunName) return null;
 
   let p: any = {};
@@ -337,7 +363,170 @@ export default function InfoDrawer({ feature, kebunName, geojsonData, onClose }:
           )}
 
         </div>
+
+        {/* Riwayat Transaksi Blok (Google Sheets webhook data) */}
+        {feature && (
+          <div
+            style={{
+              marginTop: '28px',
+              borderTop: '1px solid var(--cds-border)',
+              paddingTop: '20px',
+              fontFamily: 'inherit',
+            }}
+          >
+            <div
+              style={{
+                fontSize: '12px',
+                fontWeight: '600',
+                color: 'var(--cds-text-secondary)',
+                letterSpacing: '0.04em',
+                textTransform: 'uppercase',
+                marginBottom: '16px',
+              }}
+            >
+              Riwayat Kegiatan Harian Blok (Input Sheets)
+            </div>
+
+            {loadingHistory ? (
+              <div style={{ fontSize: '13px', color: 'var(--cds-text-secondary)', fontStyle: 'italic' }}>
+                Memuat riwayat kegiatan...
+              </div>
+            ) : (
+              <div style={{ display: 'flex', gap: '24px', flexWrap: 'wrap' }}>
+                
+                {/* Kolom Pemeliharaan */}
+                <div style={{ flex: '1 1 300px', minWidth: '280px' }}>
+                  <div
+                    style={{
+                      fontSize: '13px',
+                      fontWeight: '700',
+                      color: 'var(--cds-text-primary)',
+                      marginBottom: '12px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '8px',
+                    }}
+                  >
+                    🛠️ Pemeliharaan Harian
+                    <span style={{ fontSize: '11px', fontWeight: '500', color: 'var(--cds-text-secondary)' }}>
+                      ({history?.pemeliharaan?.length || 0} catatan)
+                    </span>
+                  </div>
+                  
+                  {history?.pemeliharaan && history.pemeliharaan.length > 0 ? (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', maxHeight: '180px', overflowY: 'auto', paddingRight: '4px' }}>
+                      {history.pemeliharaan.map((h, i) => (
+                        <div
+                          key={i}
+                          style={{
+                            background: '#f4f4f4',
+                            borderLeft: '3px solid var(--cds-primary)',
+                            padding: '8px 12px',
+                            fontSize: '12px',
+                          }}
+                        >
+                          <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: '600', color: 'var(--cds-text-primary)' }}>
+                            <span>{h.jenis_kegiatan}</span>
+                            <span style={{ color: 'var(--cds-text-secondary)', fontWeight: 'normal' }}>{formatDateString(h.tanggal)}</span>
+                          </div>
+                          <div style={{ color: 'var(--cds-text-secondary)', marginTop: '4px', fontSize: '11px' }}>
+                            {h.material && <span>Bahan: <strong>{h.material}</strong> ({h.dosis_aplikasi} L/Kg) | </span>}
+                            <span>Luas: <strong>{h.luas_aplikasi} Ha</strong></span>
+                            {h.tenaga_kerja !== null && <span> | HK: <strong>{h.tenaga_kerja}</strong></span>}
+                          </div>
+                          {h.keterangan && (
+                            <div style={{ fontStyle: 'italic', marginTop: '4px', color: 'var(--cds-text-secondary)', fontSize: '11px' }}>
+                              &ldquo;{h.keterangan}&rdquo;
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div style={{ fontSize: '12px', color: 'var(--cds-text-secondary)', fontStyle: 'italic', background: '#fcfcfc', border: '1px dashed var(--cds-border)', padding: '12px', textAlign: 'center' }}>
+                      Belum ada catatan pemeliharaan harian untuk blok ini.
+                    </div>
+                  )}
+                </div>
+
+                {/* Kolom Pemupukan */}
+                <div style={{ flex: '1 1 300px', minWidth: '280px' }}>
+                  <div
+                    style={{
+                      fontSize: '13px',
+                      fontWeight: '700',
+                      color: 'var(--cds-text-primary)',
+                      marginBottom: '12px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '8px',
+                    }}
+                  >
+                    🌱 Pemupukan Harian
+                    <span style={{ fontSize: '11px', fontWeight: '500', color: 'var(--cds-text-secondary)' }}>
+                      ({history?.pemupukan?.length || 0} catatan)
+                    </span>
+                  </div>
+
+                  {history?.pemupukan && history.pemupukan.length > 0 ? (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', maxHeight: '180px', overflowY: 'auto', paddingRight: '4px' }}>
+                      {history.pemupukan.map((h, i) => (
+                        <div
+                          key={i}
+                          style={{
+                            background: '#f4f4f4',
+                            borderLeft: '3px solid #24a148', // Green color accent for fertilizing
+                            padding: '8px 12px',
+                            fontSize: '12px',
+                          }}
+                        >
+                          <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: '600', color: 'var(--cds-text-primary)' }}>
+                            <span>Pupuk: {h.jenis_pupuk}</span>
+                            <span style={{ color: 'var(--cds-text-secondary)', fontWeight: 'normal' }}>{formatDateString(h.tanggal)}</span>
+                          </div>
+                          <div style={{ color: 'var(--cds-text-secondary)', marginTop: '4px', fontSize: '11px' }}>
+                            <span>Jumlah: <strong>{h.jumlah_pupuk} Kg</strong> | </span>
+                            <span>Luas: <strong>{h.luas_aplikasi} Ha</strong></span>
+                            {h.tenaga_kerja !== null && <span> | HK: <strong>{h.tenaga_kerja}</strong></span>}
+                          </div>
+                          {h.keterangan && (
+                            <div style={{ fontStyle: 'italic', marginTop: '4px', color: 'var(--cds-text-secondary)', fontSize: '11px' }}>
+                              &ldquo;{h.keterangan}&rdquo;
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div style={{ fontSize: '12px', color: 'var(--cds-text-secondary)', fontStyle: 'italic', background: '#fcfcfc', border: '1px dashed var(--cds-border)', padding: '12px', textAlign: 'center' }}>
+                      Belum ada catatan pemupukan harian untuk blok ini.
+                    </div>
+                  )}
+                </div>
+
+              </div>
+            )}
+          </div>
+        )}
+
       </div>
     </>
   );
+}
+
+function formatDateString(isoDateStr: string | null): string {
+  if (!isoDateStr) return '-';
+  try {
+    const parts = isoDateStr.split('-');
+    if (parts.length === 3) {
+      const months = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Ags', 'Sep', 'Okt', 'Nov', 'Des'];
+      const day = parseInt(parts[2], 10);
+      const month = months[parseInt(parts[1], 10) - 1];
+      const year = parts[0];
+      return `${day} ${month} ${year}`;
+    }
+    return isoDateStr;
+  } catch (e) {
+    return isoDateStr;
+  }
 }

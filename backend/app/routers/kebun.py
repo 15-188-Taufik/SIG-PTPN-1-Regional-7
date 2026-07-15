@@ -6,7 +6,7 @@ import json
 from pathlib import Path
 
 from app.database import get_db, is_mock
-from app.models.kebun import BlokKebun
+from app.models.kebun import BlokKebun, FactPemeliharaanHarian, FactPemupukanHarian
 from app.core.deps import get_current_user
 
 router = APIRouter(prefix="/kebun", tags=["Kebun"])
@@ -458,6 +458,65 @@ def get_blok_detail(
     if not row:
         raise HTTPException(status_code=404, detail=f"Blok dengan id {blok_id} tidak ditemukan")
     return _blok_to_feature(row.BlokKebun, row.geom_json)
+
+
+@router.get("/{blok_id}/history", summary="Ambil riwayat pemeliharaan dan pemupukan blok")
+def get_blok_history(
+    blok_id: int,
+    db: Session = Depends(get_db),
+    _user: dict = Depends(get_current_user),
+):
+    if is_mock or db is None:
+        return {"pemeliharaan": [], "pemupukan": []}
+
+    # Cek apakah blok ada
+    blok = db.query(BlokKebun).filter(BlokKebun.id == blok_id).first()
+    if not blok:
+        raise HTTPException(status_code=404, detail=f"Blok dengan id {blok_id} tidak ditemukan")
+
+    # Ambil riwayat pemeliharaan
+    pemeliharaan = (
+        db.query(FactPemeliharaanHarian)
+        .filter(FactPemeliharaanHarian.blok_id == blok_id)
+        .order_by(FactPemeliharaanHarian.tanggal.desc())
+        .all()
+    )
+
+    # Ambil riwayat pemupukan
+    pemupukan = (
+        db.query(FactPemupukanHarian)
+        .filter(FactPemupukanHarian.blok_id == blok_id)
+        .order_by(FactPemupukanHarian.tanggal.desc())
+        .all()
+    )
+
+    return {
+        "pemeliharaan": [
+            {
+                "id": p.id,
+                "tanggal": p.tanggal.isoformat() if p.tanggal else None,
+                "jenis_kegiatan": p.jenis_kegiatan,
+                "material": p.material,
+                "dosis_aplikasi": p.dosis_aplikasi,
+                "luas_aplikasi": p.luas_aplikasi,
+                "tenaga_kerja": p.tenaga_kerja,
+                "keterangan": p.keterangan,
+            }
+            for p in pemeliharaan
+        ],
+        "pemupukan": [
+            {
+                "id": p.id,
+                "tanggal": p.tanggal.isoformat() if p.tanggal else None,
+                "jenis_pupuk": p.jenis_pupuk,
+                "jumlah_pupuk": p.jumlah_pupuk,
+                "luas_aplikasi": p.luas_aplikasi,
+                "tenaga_kerja": p.tenaga_kerja,
+                "keterangan": p.keterangan,
+            }
+            for p in pemupukan
+        ],
+    }
 
 
 @router.post("/upload-geojson", summary="Unggah berkas GeoJSON untuk menambah/memperbarui data kebun")
