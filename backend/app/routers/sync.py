@@ -218,11 +218,22 @@ def sync_webhook(
             elif sheet_type == "pemeliharaan_harian":
                 row_data = PemeliharaanHarianRow(**raw_row)
                 
-                # Cari blok_id
-                blok_id = get_blok_id(db, row_data.kebun, row_data.afdeling, row_data.no_polygon, row_data.kode_blok)
+                # Gunakan blok_id langsung jika ada di sheet, jika tidak lakukan lookup
+                blok_id = getattr(row_data, "blok_id", None)
+                if not blok_id:
+                    blok_id = get_blok_id(db, row_data.kebun, row_data.afdeling, row_data.no_polygon, row_data.kode_blok)
                 if not blok_id:
                     errors.append(f"Baris {row_num}: Blok dengan Polygon '{row_data.no_polygon}' / Kode Blok '{row_data.kode_blok}' di Kebun '{row_data.kebun}' tidak ditemukan di tabel blok_kebun.")
                     continue
+
+                # Konversi tenaga_kerja secara aman (handle string non-angka seperti 'pribadi')
+                tenaga_kerja_val = None
+                raw_tk = getattr(row_data, "tenaga_kerja", None)
+                if raw_tk is not None and str(raw_tk).strip() != "":
+                    try:
+                        tenaga_kerja_val = int(round(float(str(raw_tk).strip())))
+                    except ValueError:
+                        tenaga_kerja_val = None
 
                 # Lakukan UPSERT ke fact_pemeliharaan_harian
                 stmt = insert(FactPemeliharaanHarian).values(
@@ -232,7 +243,7 @@ def sync_webhook(
                     material=row_data.material,
                     dosis_aplikasi=row_data.dosis_aplikasi,
                     luas_aplikasi=row_data.luas_aplikasi,
-                    tenaga_kerja=row_data.tenaga_kerja,
+                    tenaga_kerja=tenaga_kerja_val,
                     keterangan=row_data.keterangan
                 )
                 stmt = stmt.on_conflict_do_update(
@@ -253,11 +264,22 @@ def sync_webhook(
             elif sheet_type == "pemupukan_harian":
                 row_data = PemupukanHarianRow(**raw_row)
                 
-                # Cari blok_id
-                blok_id = get_blok_id(db, row_data.kebun, row_data.afdeling, row_data.no_polygon, row_data.kode_blok)
+                # Gunakan blok_id langsung jika ada di sheet, jika tidak lakukan lookup
+                blok_id = getattr(row_data, "blok_id", None)
+                if not blok_id:
+                    blok_id = get_blok_id(db, row_data.kebun, row_data.afdeling, row_data.no_polygon, row_data.kode_blok)
                 if not blok_id:
                     errors.append(f"Baris {row_num}: Blok dengan Polygon '{row_data.no_polygon}' / Kode Blok '{row_data.kode_blok}' di Kebun '{row_data.kebun}' tidak ditemukan di tabel blok_kebun.")
                     continue
+
+                # Konversi tenaga_kerja secara aman
+                tenaga_kerja_val = None
+                raw_tk = getattr(row_data, "tenaga_kerja", None)
+                if raw_tk is not None and str(raw_tk).strip() != "":
+                    try:
+                        tenaga_kerja_val = int(round(float(str(raw_tk).strip())))
+                    except ValueError:
+                        tenaga_kerja_val = None
 
                 # Lakukan UPSERT ke fact_pemupukan_harian
                 stmt = insert(FactPemupukanHarian).values(
@@ -266,7 +288,7 @@ def sync_webhook(
                     jenis_pupuk=row_data.jenis_pupuk,
                     jumlah_pupuk=row_data.jumlah_pupuk,
                     luas_aplikasi=row_data.luas_aplikasi,
-                    tenaga_kerja=row_data.tenaga_kerja,
+                    tenaga_kerja=tenaga_kerja_val,
                     keterangan=row_data.keterangan
                 )
                 stmt = stmt.on_conflict_do_update(

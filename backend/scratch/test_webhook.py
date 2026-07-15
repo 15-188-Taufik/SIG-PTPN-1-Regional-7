@@ -131,16 +131,13 @@ def run_tests():
             rows=[
                 {
                     "tanggal": "2026-07-15",
-                    "kebun": blok.kebun,
-                    "afdeling": blok.afdeling,
-                    "No Polygon": blok.no_polygon,
-                    "Kode Blok": blok.kode_blok,
-                    "Jenis Kegiatan": "Manual Weeding",
-                    "Material": "Roundup",
-                    "Dosis": 2.5,
-                    "Luas Aplikasi (Ha)": 1.5,
-                    "Tenaga Kerja (HK)": 3,
-                    "Keterangan": "Pembersihan piringan"
+                    "blok_id": blok.id,
+                    "jenis_kegiatan": "Manual Weeding",
+                    "material": "Roundup",
+                    "dosis_aplikasi": 2.5,
+                    "luas_aplikasi": 1.5,
+                    "tenaga_kerja": "pribadi",  # Test safe-casting of string to int
+                    "keterangan": "Pembersihan piringan"
                 }
             ]
         )
@@ -155,15 +152,12 @@ def run_tests():
             rows=[
                 {
                     "tanggal": "2026-07-15",
-                    "kebun": blok.kebun,
-                    "afdeling": blok.afdeling,
-                    "No Polygon": blok.no_polygon,
-                    "Kode Blok": blok.kode_blok,
-                    "Jenis Pupuk": "Urea",
-                    "Jumlah Pupuk (Kg)": 250.0,
-                    "Luas Aplikasi (Ha)": 2.0,
-                    "Tenaga Kerja (HK)": 4,
-                    "Keterangan": "Pemupukan rutin"
+                    "blok_id": blok.id,
+                    "jenis_pupuk": "Urea",
+                    "jumlah_pupuk": 250.0,
+                    "luas_aplikasi": 2.0,
+                    "tenaga_kerja": 4,
+                    "keterangan": "Pemupukan rutin"
                 }
             ]
         )

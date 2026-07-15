@@ -1,5 +1,5 @@
 from pydantic import BaseModel, Field
-from typing import List, Optional
+from typing import List, Optional, Any
 from datetime import date
 
 
@@ -20,16 +20,17 @@ class ProduksiHarianRow(BaseModel):
 
 class PemeliharaanHarianRow(BaseModel):
     tanggal: date
-    kebun: str
-    afdeling: str
-    no_polygon: Optional[str] = Field(None, alias="No Polygon")
-    kode_blok: Optional[str] = Field(None, alias="Kode Blok")
-    jenis_kegiatan: str = Field(..., alias="Jenis Kegiatan")
-    material: Optional[str] = Field(None, alias="Material")
-    dosis_aplikasi: Optional[float] = Field(0.0, alias="Dosis")
-    luas_aplikasi: Optional[float] = Field(0.0, alias="Luas Aplikasi (Ha)")
-    tenaga_kerja: Optional[int] = Field(0, alias="Tenaga Kerja (HK)")
-    keterangan: Optional[str] = Field(None, alias="Keterangan")
+    blok_id: Optional[int] = Field(None, alias="blok_id")
+    kebun: Optional[str] = None
+    afdeling: Optional[str] = None
+    no_polygon: Optional[str] = Field(None, alias="no_polygon")
+    kode_blok: Optional[str] = Field(None, alias="kode_blok")
+    jenis_kegiatan: str = Field(..., alias="jenis_kegiatan")
+    material: Optional[str] = Field(None, alias="material")
+    dosis_aplikasi: Optional[float] = Field(0.0, alias="dosis_aplikasi")
+    luas_aplikasi: Optional[float] = Field(0.0, alias="luas_aplikasi")
+    tenaga_kerja: Optional[Any] = Field(None, alias="tenaga_kerja")
+    keterangan: Optional[str] = Field(None, alias="keterangan")
 
     class Config:
         populate_by_name = True
@@ -37,15 +38,16 @@ class PemeliharaanHarianRow(BaseModel):
 
 class PemupukanHarianRow(BaseModel):
     tanggal: date
-    kebun: str
-    afdeling: str
-    no_polygon: Optional[str] = Field(None, alias="No Polygon")
-    kode_blok: Optional[str] = Field(None, alias="Kode Blok")
-    jenis_pupuk: str = Field(..., alias="Jenis Pupuk")
-    jumlah_pupuk: float = Field(..., alias="Jumlah Pupuk (Kg)")
-    luas_aplikasi: Optional[float] = Field(0.0, alias="Luas Aplikasi (Ha)")
-    tenaga_kerja: Optional[int] = Field(0, alias="Tenaga Kerja (HK)")
-    keterangan: Optional[str] = Field(None, alias="Keterangan")
+    blok_id: Optional[int] = Field(None, alias="blok_id")
+    kebun: Optional[str] = None
+    afdeling: Optional[str] = None
+    no_polygon: Optional[str] = Field(None, alias="no_polygon")
+    kode_blok: Optional[str] = Field(None, alias="kode_blok")
+    jenis_pupuk: str = Field(..., alias="jenis_pupuk")
+    jumlah_pupuk: float = Field(..., alias="jumlah_pupuk")
+    luas_aplikasi: Optional[float] = Field(0.0, alias="luas_aplikasi")
+    tenaga_kerja: Optional[Any] = Field(None, alias="tenaga_kerja")
+    keterangan: Optional[str] = Field(None, alias="keterangan")
 
     class Config:
         populate_by_name = True
