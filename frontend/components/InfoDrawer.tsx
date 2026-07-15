@@ -444,7 +444,9 @@ export default function InfoDrawer({ feature, kebunName, geojsonData, onClose }:
                     </div>
                   ) : (
                     <div style={{ fontSize: '12px', color: 'var(--cds-text-secondary)', fontStyle: 'italic', background: '#fcfcfc', border: '1px dashed var(--cds-border)', padding: '12px', textAlign: 'center' }}>
-                      Belum ada catatan pemeliharaan harian untuk blok ini.
+                      {p.is_afdeling_level || p.is_kebun_level
+                        ? 'Riwayat kegiatan harian hanya dapat dilihat pada tingkat detail Blok.'
+                        : 'Belum ada catatan pemeliharaan harian untuk blok ini.'}
                     </div>
                   )}
                 </div>
@@ -499,7 +501,9 @@ export default function InfoDrawer({ feature, kebunName, geojsonData, onClose }:
                     </div>
                   ) : (
                     <div style={{ fontSize: '12px', color: 'var(--cds-text-secondary)', fontStyle: 'italic', background: '#fcfcfc', border: '1px dashed var(--cds-border)', padding: '12px', textAlign: 'center' }}>
-                      Belum ada catatan pemupukan harian untuk blok ini.
+                      {p.is_afdeling_level || p.is_kebun_level
+                        ? 'Riwayat kegiatan harian hanya dapat dilihat pada tingkat detail Blok.'
+                        : 'Belum ada catatan pemupukan harian untuk blok ini.'}
                     </div>
                   )}
                 </div>

@@ -35,8 +35,8 @@ interface SidePanelProps {
   onSelectKebunAnalysis?: (kebun: string) => void;
   onHighlightKebun?: (kebun: string) => void;
   onUploadSuccess?: () => void;
-  detailLevel: 'block' | 'kebun';
-  onDetailLevelChange: (level: 'block' | 'kebun') => void;
+  detailLevel: 'block' | 'afdeling' | 'kebun';
+  onDetailLevelChange: (level: 'block' | 'afdeling' | 'kebun') => void;
   collapsed: boolean;
   onToggleCollapse: () => void;
 }
@@ -532,7 +532,7 @@ export default function SidePanel({
                       onClick={() => onDetailLevelChange('block')}
                       style={{
                         flex: 1,
-                        padding: '6px 12px',
+                        padding: '6px 6px',
                         background: detailLevel === 'block' ? '#ffffff' : 'transparent',
                         border: 'none',
                         color: 'var(--cds-text-primary)',
@@ -543,13 +543,30 @@ export default function SidePanel({
                         textAlign: 'center',
                       }}
                     >
-                      Per Blok (Afdeling)
+                      Blok
+                    </button>
+                    <button
+                      onClick={() => onDetailLevelChange('afdeling')}
+                      style={{
+                        flex: 1,
+                        padding: '6px 6px',
+                        background: detailLevel === 'afdeling' ? '#ffffff' : 'transparent',
+                        border: 'none',
+                        color: 'var(--cds-text-primary)',
+                        fontSize: '11px',
+                        fontWeight: '600',
+                        cursor: 'pointer',
+                        fontFamily: 'inherit',
+                        textAlign: 'center',
+                      }}
+                    >
+                      Afdeling
                     </button>
                     <button
                       onClick={() => onDetailLevelChange('kebun')}
                       style={{
                         flex: 1,
-                        padding: '6px 12px',
+                        padding: '6px 6px',
                         background: detailLevel === 'kebun' ? '#ffffff' : 'transparent',
                         border: 'none',
                         color: 'var(--cds-text-primary)',
@@ -560,7 +577,7 @@ export default function SidePanel({
                         textAlign: 'center',
                       }}
                     >
-                      Per Kebun
+                      Kebun
                     </button>
                   </div>
                 </div>

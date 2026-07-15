@@ -121,7 +121,7 @@ interface MapViewProps {
   activeKebun: string[];
   viewMode: ViewMode;
   showEmptyData: boolean;
-  detailLevel: 'block' | 'kebun';
+  detailLevel: 'block' | 'afdeling' | 'kebun';
   mapInstanceRef?: React.MutableRefObject<Map | null>;
 }
 
@@ -301,31 +301,15 @@ export default function MapView({
           return;
         }
 
-        // Pre-calculate aggregate values per kebun
-        const kebunAggregates: Record<string, { l_gis: number; l_rkap: number; populasi: number; protas_24: number }> = {};
-        filteredFeatures.forEach((feat) => {
-          const k = feat.properties.kebun || 'Unknown';
-          if (!kebunAggregates[k]) {
-            kebunAggregates[k] = { l_gis: 0, l_rkap: 0, populasi: 0, protas_24: 0 };
-          }
-          const p = feat.properties;
-          kebunAggregates[k].l_gis += p.l_gis || 0;
-          kebunAggregates[k].l_rkap += p.l_rkap || 0;
-          kebunAggregates[k].populasi += p.populasi || 0;
-          kebunAggregates[k].protas_24 += p.protas_24 || p.protas_23 || p.protas_22 || p.protas_21 || 0;
-        });
-
-        // Group features by kebun name to dissolve/union
+        // 1. DISSOLVE KEBUN OUTLINES (Used for bold kebun boundaries on map)
         const kebunGroups: Record<string, any[]> = {};
         filteredFeatures.forEach((feat) => {
           const k = feat.properties.kebun || 'Unknown';
-          if (!kebunGroups[k]) {
-            kebunGroups[k] = [];
-          }
+          if (!kebunGroups[k]) kebunGroups[k] = [];
           kebunGroups[k].push(feat);
         });
 
-        const outlineFeatures: any[] = [];
+        const kebunOutlineFeatures: any[] = [];
         Object.entries(kebunGroups).forEach(([kebunName, feats]) => {
           try {
             let dissolved: any = null;
@@ -335,37 +319,20 @@ export default function MapView({
               const fc = turf.featureCollection(feats);
               dissolved = turf.union(fc as any);
             }
-
             if (dissolved) {
-              const agg = kebunAggregates[kebunName] || { l_gis: 1, l_rkap: 0, populasi: 0, protas_24: 0 };
-              const pYears = feats.map((f) => {
-                const yr = f.properties.thn_tanam;
-                if (!yr) return null;
-                const num = parseInt(yr.toString().replace(/[^0-9]/g, ''), 10);
-                return isNaN(num) ? null : num;
-              }).filter(Boolean) as number[];
-              const avgYr = pYears.length > 0 ? Math.round(pYears.reduce((a, b) => a + b, 0) / pYears.length) : null;
-
-              dissolved.properties = {
-                kebun: kebunName,
-                l_gis: agg.l_gis,
-                l_rkap: agg.l_rkap,
-                populasi: agg.populasi,
-                protas_24: agg.protas_24,
-                thn_tanam: avgYr ? `${avgYr}` : null,
-              };
-              outlineFeatures.push(dissolved);
+              dissolved.properties = { kebun: kebunName };
+              kebunOutlineFeatures.push(dissolved);
             }
           } catch (err) {
-            console.error(`Failed to union/dissolve features for kebun ${kebunName}:`, err);
+            console.error(`Failed to union kebun outlines for ${kebunName}:`, err);
           }
         });
 
         let outlinesLayerInstance: any = null;
         let layerGroup: any = null;
-
         const effectiveDetailLevel = detailLevel;
 
+        // 2. RENDER MAP LAYERS ACCORDING TO DETAIL LEVEL
         if (effectiveDetailLevel === 'block') {
           const blocksLayer = L.geoJSON(
             { type: 'FeatureCollection', features: filteredFeatures },
@@ -427,12 +394,12 @@ export default function MapView({
           );
 
           outlinesLayerInstance = L.geoJSON(
-            { type: 'FeatureCollection', features: outlineFeatures },
+            { type: 'FeatureCollection', features: kebunOutlineFeatures },
             {
               style: () => ({
                 fill: false,
                 color: '#262626',
-                weight: 1.2,
+                weight: 1.4,
                 opacity: 1,
               }),
               interactive: false,
@@ -440,10 +407,80 @@ export default function MapView({
           );
 
           layerGroup = L.layerGroup([blocksLayer, outlinesLayerInstance]).addTo(currentMap);
-        } else {
-          // Per Kebun mode: outline features represent the entire kebun as solid interactive shapes
-          outlinesLayerInstance = L.geoJSON(
-            { type: 'FeatureCollection', features: outlineFeatures },
+        } 
+        else if (effectiveDetailLevel === 'afdeling') {
+          // Group features by kebun AND afdeling
+          const afdGroups: Record<string, { feats: any[]; kebun: string; afdeling: string }> = {};
+          filteredFeatures.forEach((feat) => {
+            const p = feat.properties;
+            const kebunVal = p.kebun || 'Unknown';
+            const afdVal = p.afdeling || 'Unknown';
+            const key = `${kebunVal}|||${afdVal}`;
+            if (!afdGroups[key]) {
+              afdGroups[key] = { feats: [], kebun: kebunVal, afdeling: afdVal };
+            }
+            afdGroups[key].feats.push(feat);
+          });
+
+          const afdFeatures: any[] = [];
+          Object.entries(afdGroups).forEach(([key, group]) => {
+            try {
+              let dissolved: any = null;
+              if (group.feats.length === 1) {
+                dissolved = JSON.parse(JSON.stringify(group.feats[0]));
+              } else if (group.feats.length > 1) {
+                const fc = turf.featureCollection(group.feats);
+                dissolved = turf.union(fc as any);
+              }
+
+              if (dissolved) {
+                // Sum aggregates
+                const l_gis = group.feats.reduce((sum, f) => sum + (f.properties.l_gis || 0), 0);
+                const l_rkap = group.feats.reduce((sum, f) => sum + (f.properties.l_rkap || 0), 0);
+                const populasi = group.feats.reduce((sum, f) => sum + (f.properties.populasi || 0), 0);
+                
+                const protas_21 = group.feats.reduce((sum, f) => sum + (f.properties.protas_21 || 0), 0);
+                const protas_22 = group.feats.reduce((sum, f) => sum + (f.properties.protas_22 || 0), 0);
+                const protas_23 = group.feats.reduce((sum, f) => sum + (f.properties.protas_23 || 0), 0);
+                const protas_24 = group.feats.reduce((sum, f) => sum + (f.properties.protas_24 || f.properties.protas_23 || f.properties.protas_22 || f.properties.protas_21 || 0), 0);
+
+                const plantYears = group.feats.map((f) => {
+                  const yr = f.properties.thn_tanam;
+                  if (!yr) return null;
+                  const num = parseInt(yr.toString().replace(/[^0-9]/g, ''), 10);
+                  return isNaN(num) ? null : num;
+                }).filter(Boolean) as number[];
+                const avgYr = plantYears.length > 0 ? Math.round(plantYears.reduce((a, b) => a + b, 0) / plantYears.length) : null;
+                
+                const komodities = Array.from(new Set(group.feats.map((f) => f.properties.komoditi).filter(Boolean))).join(', ');
+                const statuses = Array.from(new Set(group.feats.map((f) => f.properties.status).filter(Boolean))).join(', ');
+                const varietas = Array.from(new Set(group.feats.map((f) => f.properties.varietas).filter(Boolean))).slice(0, 3).join(', ');
+
+                dissolved.properties = {
+                  kebun: group.kebun,
+                  afdeling: group.afdeling,
+                  l_gis,
+                  l_rkap,
+                  populasi,
+                  protas_21,
+                  protas_22,
+                  protas_23,
+                  protas_24,
+                  thn_tanam: avgYr ? `${avgYr}` : null,
+                  komoditi: komodities,
+                  status: statuses,
+                  varietas: varietas,
+                  is_afdeling_level: true
+                };
+                afdFeatures.push(dissolved);
+              }
+            } catch (err) {
+              console.error(`Failed to union afdeling outlines for key ${key}:`, err);
+            }
+          });
+
+          const afdLayer = L.geoJSON(
+            { type: 'FeatureCollection', features: afdFeatures },
             {
               style: (feature: GeoJSONFeature) => {
                 const color = getFeatureColor(feature, viewMode, showEmptyData);
@@ -451,7 +488,147 @@ export default function MapView({
                   fillColor: color,
                   fillOpacity: 0.95,
                   stroke: true,
-                  color: '#262626', // Outlines always drawn in charcoal
+                  color: '#ffffff', // White stroke to separate adjacent afdelings
+                  weight: 0.8,
+                  opacity: 1,
+                };
+              },
+              onEachFeature: (feature: GeoJSONFeature, lyr: any) => {
+                const p = feature.properties;
+                const kebunName = getKebunDisplayName(p.kebun);
+                const afdelingName = p.afdeling ? `Afdeling ${p.afdeling}` : 'Afdeling -';
+
+                const tooltipHtml = `
+                  <div style="font-family: 'IBM Plex Sans', sans-serif; padding: 6px 10px; font-size: 11px; line-height: 1.4; color: #161616;">
+                    <div style="font-weight: 700; color: var(--cds-primary); margin-bottom: 2px;">
+                      Kebun ${kebunName}
+                    </div>
+                    <div style="font-weight: 600; color: #525252; margin-bottom: 4px;">
+                      ${afdelingName}
+                    </div>
+                    <div style="font-size: 10px; color: #8d8d8d; border-top: 1px solid #e0e0e0; padding-top: 3px; margin-top: 3px;">
+                      Total Luas: ${p.l_gis ? p.l_gis.toLocaleString('id-ID', { maximumFractionDigits: 2 }) : 0} Ha
+                    </div>
+                  </div>
+                `;
+
+                lyr.bindTooltip(tooltipHtml, {
+                  sticky: true,
+                  direction: 'auto',
+                  className: 'carbon-map-tooltip',
+                  opacity: 0.95,
+                });
+
+                lyr.on({
+                  mouseover: () => {
+                    lyr.setStyle({ fillOpacity: 1.0 });
+                    lyr.bringToFront();
+                    if (outlinesLayerInstance) {
+                      outlinesLayerInstance.bringToFront();
+                    }
+                  },
+                  mouseout: () => {
+                    afdLayer.resetStyle(lyr);
+                  },
+                  click: () => {
+                    onFeatureClick(feature);
+                  },
+                });
+              },
+            }
+          );
+
+          outlinesLayerInstance = L.geoJSON(
+            { type: 'FeatureCollection', features: kebunOutlineFeatures },
+            {
+              style: () => ({
+                fill: false,
+                color: '#262626',
+                weight: 1.4,
+                opacity: 1,
+              }),
+              interactive: false,
+            }
+          );
+
+          layerGroup = L.layerGroup([afdLayer, outlinesLayerInstance]).addTo(currentMap);
+        }
+        else {
+          // effectiveDetailLevel === 'kebun'
+          const kebunAggregates: Record<string, { l_gis: number; l_rkap: number; populasi: number; protas_21: number; protas_22: number; protas_23: number; protas_24: number }> = {};
+          filteredFeatures.forEach((feat) => {
+            const k = feat.properties.kebun || 'Unknown';
+            if (!kebunAggregates[k]) {
+              kebunAggregates[k] = { l_gis: 0, l_rkap: 0, populasi: 0, protas_21: 0, protas_22: 0, protas_23: 0, protas_24: 0 };
+            }
+            const p = feat.properties;
+            kebunAggregates[k].l_gis += p.l_gis || 0;
+            kebunAggregates[k].l_rkap += p.l_rkap || 0;
+            kebunAggregates[k].populasi += p.populasi || 0;
+            
+            kebunAggregates[k].protas_21 += p.protas_21 || 0;
+            kebunAggregates[k].protas_22 += p.protas_22 || 0;
+            kebunAggregates[k].protas_23 += p.protas_23 || 0;
+            kebunAggregates[k].protas_24 += p.protas_24 || p.protas_23 || p.protas_22 || p.protas_21 || 0;
+          });
+
+          const kebunFeatures: any[] = [];
+          Object.entries(kebunGroups).forEach(([kebunName, feats]) => {
+            try {
+              let dissolved: any = null;
+              if (feats.length === 1) {
+                dissolved = JSON.parse(JSON.stringify(feats[0]));
+              } else if (feats.length > 1) {
+                const fc = turf.featureCollection(feats);
+                dissolved = turf.union(fc as any);
+              }
+
+              if (dissolved) {
+                const agg = kebunAggregates[kebunName] || { l_gis: 1, l_rkap: 0, populasi: 0, protas_21: 0, protas_22: 0, protas_23: 0, protas_24: 0 };
+                const pYears = feats.map((f) => {
+                  const yr = f.properties.thn_tanam;
+                  if (!yr) return null;
+                  const num = parseInt(yr.toString().replace(/[^0-9]/g, ''), 10);
+                  return isNaN(num) ? null : num;
+                }).filter(Boolean) as number[];
+                const avgYr = pYears.length > 0 ? Math.round(pYears.reduce((a, b) => a + b, 0) / pYears.length) : null;
+                
+                const komodities = Array.from(new Set(feats.map((f) => f.properties.komoditi).filter(Boolean))).join(', ');
+                const statuses = Array.from(new Set(feats.map((f) => f.properties.status).filter(Boolean))).join(', ');
+                const varietas = Array.from(new Set(feats.map((f) => f.properties.varietas).filter(Boolean))).slice(0, 3).join(', ');
+
+                dissolved.properties = {
+                  kebun: kebunName,
+                  l_gis: agg.l_gis,
+                  l_rkap: agg.l_rkap,
+                  populasi: agg.populasi,
+                  protas_21: agg.protas_21,
+                  protas_22: agg.protas_22,
+                  protas_23: agg.protas_23,
+                  protas_24: agg.protas_24,
+                  thn_tanam: avgYr ? `${avgYr}` : null,
+                  komoditi: komodities,
+                  status: statuses,
+                  varietas: varietas,
+                  is_kebun_level: true
+                };
+                kebunFeatures.push(dissolved);
+              }
+            } catch (err) {
+              console.error(`Failed to union kebun for ${kebunName}:`, err);
+            }
+          });
+
+          const kebunLayer = L.geoJSON(
+            { type: 'FeatureCollection', features: kebunFeatures },
+            {
+              style: (feature: GeoJSONFeature) => {
+                const color = getFeatureColor(feature, viewMode, showEmptyData);
+                return {
+                  fillColor: color,
+                  fillOpacity: 0.95,
+                  stroke: true,
+                  color: '#262626', // Charcoal borders for kebun outlines
                   weight: 1.2,
                   opacity: 1,
                 };
@@ -462,11 +639,11 @@ export default function MapView({
 
                 const tooltipHtml = `
                   <div style="font-family: 'IBM Plex Sans', sans-serif; padding: 6px 10px; font-size: 11px; line-height: 1.4; color: #161616;">
-                    <div style="font-weight: 700; color: var(--cds-primary);">
+                    <div style="font-weight: 700; color: var(--cds-primary); margin-bottom: 2px;">
                       Kebun ${kebunName}
                     </div>
-                    <div style="font-size: 10px; color: #525252; margin-top: 2px;">
-                      Klik untuk analisis detail
+                    <div style="font-size: 10px; color: #8d8d8d; border-top: 1px solid #e0e0e0; padding-top: 3px; margin-top: 3px;">
+                      Total Luas: ${p.l_gis ? p.l_gis.toLocaleString('id-ID', { maximumFractionDigits: 2 }) : 0} Ha
                     </div>
                   </div>
                 `;
@@ -484,7 +661,7 @@ export default function MapView({
                     lyr.bringToFront();
                   },
                   mouseout: () => {
-                    outlinesLayerInstance.resetStyle(lyr);
+                    kebunLayer.resetStyle(lyr);
                   },
                   click: () => {
                     onFeatureClick(feature);
@@ -494,7 +671,7 @@ export default function MapView({
             }
           );
 
-          layerGroup = L.layerGroup([outlinesLayerInstance]).addTo(currentMap);
+          layerGroup = L.layerGroup([kebunLayer]).addTo(currentMap);
         }
 
         geojsonLayerRef.current = layerGroup;

@@ -28,7 +28,7 @@ export default function DashboardPage() {
   const [viewMode, setViewMode] = useState<ViewMode>('default');
   const [showEmptyData, setShowEmptyData] = useState(true);
   const [selectedKebunAnalysis, setSelectedKebunAnalysis] = useState<string | null>(null);
-  const [detailLevel, setDetailLevel] = useState<'block' | 'kebun'>('block');
+  const [detailLevel, setDetailLevel] = useState<'block' | 'afdeling' | 'kebun'>('block');
   const [mounted, setMounted] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const mapInstanceRef = useRef<any>(null);
