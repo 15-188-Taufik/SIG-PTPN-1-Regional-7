@@ -364,7 +364,7 @@ export default function MapView({
         let outlinesLayerInstance: any = null;
         let layerGroup: any = null;
 
-        const effectiveDetailLevel = viewMode === 'default' ? 'kebun' : detailLevel;
+        const effectiveDetailLevel = detailLevel;
 
         if (effectiveDetailLevel === 'block') {
           const blocksLayer = L.geoJSON(
@@ -376,8 +376,8 @@ export default function MapView({
                   fillColor: color,
                   fillOpacity: 0.95,
                   stroke: true,
-                  color: color,
-                  weight: 0.8,
+                  color: '#ffffff', // Thin white stroke to separate adjacent blocks
+                  weight: 0.6,
                   opacity: 1,
                 };
               },
