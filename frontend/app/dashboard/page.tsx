@@ -136,10 +136,15 @@ export default function DashboardPage() {
         const tempLayer = L.geoJSON(feature);
         const bounds = tempLayer.getBounds();
         if (bounds.isValid()) {
-          mapInstanceRef.current.fitBounds(bounds, { padding: [80, 80], maxZoom: 16 });
+          mapInstanceRef.current.flyToBounds(bounds, { 
+            padding: [80, 80], 
+            maxZoom: 16,
+            animate: true,
+            duration: 1.2
+          });
         }
       } catch (err) {
-        console.error('Error fitting bounds:', err);
+        console.error('Error flying to bounds:', err);
       }
     }
   }, []);

@@ -70,6 +70,8 @@ export default function SidePanel({
   onToggleCollapse,
 }: SidePanelProps) {
   const [activeTab, setActiveTab] = useState<'filter' | 'alerts' | 'upload'>('filter');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [isSearchFocused, setIsSearchFocused] = useState(false);
   const [expandedKebunAlerts, setExpandedKebunAlerts] = useState<Record<string, boolean>>({});
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
@@ -346,6 +348,174 @@ export default function SidePanel({
           >
             {activeTab === 'filter' && (
               <>
+                {/* Search Box Section */}
+                <div style={{ marginBottom: '16px', position: 'relative' }}>
+                  <div style={sectionLabel}>Cari Blok / Afdeling</div>
+                  <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+                    <span style={{ position: 'absolute', left: '10px', color: '#8d8d8d', fontSize: '14px', display: 'flex', alignItems: 'center', pointerEvents: 'none' }}>
+                      🔍
+                    </span>
+                    <input
+                      type="text"
+                      placeholder="Cari Kode Blok, No Polygon, Afdeling..."
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      onFocus={() => setIsSearchFocused(true)}
+                      onBlur={() => {
+                        // Delay blurring slightly to allow click event to register on dropdown items
+                        setTimeout(() => setIsSearchFocused(false), 200);
+                      }}
+                      style={{
+                        width: '100%',
+                        padding: '8px 32px 8px 30px',
+                        background: '#ffffff',
+                        border: '1px solid #8d8d8d',
+                        fontSize: '12px',
+                        fontFamily: 'inherit',
+                        color: '#161616',
+                        borderRadius: '0px',
+                        outline: 'none',
+                        transition: 'border-color 0.2s',
+                      }}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Escape') {
+                          setSearchQuery('');
+                          e.currentTarget.blur();
+                        }
+                      }}
+                    />
+                    {searchQuery && (
+                      <button
+                        onClick={() => setSearchQuery('')}
+                        style={{
+                          position: 'absolute',
+                          right: '8px',
+                          background: 'none',
+                          border: 'none',
+                          color: '#8d8d8d',
+                          cursor: 'pointer',
+                          fontSize: '14px',
+                          padding: '2px',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                        }}
+                      >
+                        &times;
+                      </button>
+                    )}
+                  </div>
+
+                  {/* Autocomplete Dropdown */}
+                  {isSearchFocused && (() => {
+                    if (!searchQuery.trim() || !geojsonData) return null;
+                    const q = searchQuery.toLowerCase().trim();
+                    const matches: GeoJSONFeature[] = [];
+                    for (const feat of geojsonData.features) {
+                      const p = feat.properties;
+                      const blockCode = (p.kode_blok || '').toString().toLowerCase();
+                      const polygonNo = (p.no_polygon || '').toString().toLowerCase();
+                      const afd = (p.afdeling || '').toString().toLowerCase();
+                      const kebunName = (p.kebun || '').toString().toLowerCase();
+                      
+                      if (
+                        blockCode.includes(q) ||
+                        polygonNo.includes(q) ||
+                        afd.includes(q) ||
+                        (q.length > 2 && kebunName.includes(q))
+                      ) {
+                        matches.push(feat);
+                        if (matches.length >= 8) break;
+                      }
+                    }
+
+                    if (matches.length === 0 && searchQuery.trim().length > 1) {
+                      return (
+                        <div
+                          style={{
+                            position: 'absolute',
+                            top: '100%',
+                            left: 0,
+                            right: 0,
+                            background: '#ffffff',
+                            boxShadow: '0 4px 12px rgba(0, 0, 0, 0.15)',
+                            border: '1px solid #8d8d8d',
+                            borderTop: 'none',
+                            zIndex: 9999,
+                            padding: '10px 12px',
+                            fontSize: '11px',
+                            color: '#8d8d8d',
+                            fontStyle: 'italic',
+                            textAlign: 'center',
+                          }}
+                        >
+                          Tidak ada blok atau afdeling yang cocok.
+                        </div>
+                      );
+                    }
+
+                    if (matches.length > 0) {
+                      return (
+                        <div
+                          style={{
+                            position: 'absolute',
+                            top: '100%',
+                            left: 0,
+                            right: 0,
+                            background: '#ffffff',
+                            boxShadow: '0 4px 12px rgba(0, 0, 0, 0.15)',
+                            border: '1px solid #8d8d8d',
+                            borderTop: 'none',
+                            zIndex: 9999,
+                            maxHeight: '240px',
+                            overflowY: 'auto',
+                          }}
+                        >
+                          {matches.map((feat, idx) => {
+                            const p = feat.properties;
+                            const displayName = getKebunDisplayName(p.kebun);
+                            const afdName = p.afdeling ? `Afd ${p.afdeling}` : 'Afd -';
+                            const blockCode = p.kode_blok || p.no_polygon || 'Blok';
+                            
+                            return (
+                              <div
+                                key={idx}
+                                onClick={() => {
+                                  onSelectFeature(feat);
+                                  setSearchQuery(`${blockCode} (${afdName})`);
+                                }}
+                                style={{
+                                  padding: '8px 12px',
+                                  cursor: 'pointer',
+                                  borderBottom: idx < matches.length - 1 ? '1px solid #e0e0e0' : 'none',
+                                  fontSize: '11px',
+                                  fontFamily: 'inherit',
+                                  transition: 'background-color 0.15s',
+                                  textAlign: 'left',
+                                }}
+                                onMouseEnter={(e) => {
+                                  e.currentTarget.style.backgroundColor = '#f4f4f4';
+                                }}
+                                onMouseLeave={(e) => {
+                                  e.currentTarget.style.backgroundColor = '#ffffff';
+                                }}
+                              >
+                                <div style={{ fontWeight: '700', color: 'var(--cds-primary)', marginBottom: '2px' }}>
+                                  Blok {blockCode}
+                                </div>
+                                <div style={{ color: '#525252' }}>
+                                  Kebun {displayName} &middot; {afdName}
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      );
+                    }
+                    return null;
+                  })()}
+                </div>
+
                 {/* Visual Detail Level Selector (Segmented Control) */}
                 <div>
                   <div style={sectionLabel}>Detail Peta</div>
