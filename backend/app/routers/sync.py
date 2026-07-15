@@ -169,6 +169,10 @@ def sync_webhook(
         try:
             # 1. PROSES PRODUKSI HARIAN
             if sheet_type == "produksi_harian":
+                # Normalisasi typo penulisan kolom 'rendeman' (dengan a) menjadi 'rendemen' (dengan e)
+                if "rendeman_persen" in raw_row and "rendemen_persen" not in raw_row:
+                    raw_row["rendemen_persen"] = raw_row["rendeman_persen"]
+
                 # Validasi dengan schema Pydantic
                 row_data = ProduksiHarianRow(**raw_row)
                 
