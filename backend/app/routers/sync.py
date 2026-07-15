@@ -288,7 +288,9 @@ def sync_webhook(
                     parsed_str = str(row_data.dict())
                 except Exception:
                     pass
-            errors.append(f"Baris {row_num}: Kesalahan pemrosesan. Detail: {str(e)}. Data baris: {raw_row}. Parsed: {parsed_str}")
+            # Ambil codepoint dari kunci-kunci input untuk melacak karakter tersembunyi
+            key_codepoints = {k: [ord(c) for c in k] for k in raw_row.keys()}
+            errors.append(f"Baris {row_num}: Kesalahan pemrosesan. Detail: {str(e)}. Data baris: {raw_row}. Parsed: {parsed_str}. Key codepoints: {key_codepoints}")
 
     # Commit seluruh transaksi jika tidak ada error fatal
     if success_count > 0:
