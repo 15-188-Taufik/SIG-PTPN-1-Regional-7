@@ -282,7 +282,7 @@ def sync_webhook(
                 errors.append(f"Baris {row_num}: Tipe sheet '{sheet_type}' tidak dikenali.")
 
         except Exception as e:
-            errors.append(f"Baris {row_num}: Kesalahan pemrosesan. Detail: {str(e)}")
+            errors.append(f"Baris {row_num}: Kesalahan pemrosesan. Detail: {str(e)}. Data baris: {raw_row}")
 
     # Commit seluruh transaksi jika tidak ada error fatal
     if success_count > 0:
