@@ -184,13 +184,16 @@ def sync_webhook(
                     errors.append(f"Baris {row_num}: Kolom id_afdeling kosong atau tidak valid.")
                     continue
 
+                # Konversi jumlah_pemanen_hk dari float ke int (membulatkan ke bilangan bulat terdekat)
+                pemanen_hk = int(round(row_data.jumlah_pemanen_hk)) if row_data.jumlah_pemanen_hk is not None else None
+
                 # Lakukan UPSERT ke fact_produksi_harian
                 stmt = insert(FactProduksiHarian).values(
                     tanggal=row_data.tanggal,
                     id_afdeling=id_afdeling,
                     target_harian_ton=row_data.target_harian_ton,
                     produksi_aktual_ton=row_data.produksi_aktual_ton,
-                    jumlah_pemanen_hk=row_data.jumlah_pemanen_hk,
+                    jumlah_pemanen_hk=pemanen_hk,
                     curah_hujan_mm=row_data.curah_hujan_mm,
                     rendemen_persen=row_data.rendemen_persen
                 )

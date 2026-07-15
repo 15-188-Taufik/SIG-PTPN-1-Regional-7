@@ -10,7 +10,7 @@ class ProduksiHarianRow(BaseModel):
     afdeling: Optional[str] = None
     target_harian_ton: Optional[float] = Field(None, alias="target_harian_ton")
     produksi_aktual_ton: Optional[float] = Field(None, alias="produksi_aktual_ton")
-    jumlah_pemanen_hk: Optional[int] = Field(None, alias="jumlah_pemanen_hk")
+    jumlah_pemanen_hk: Optional[float] = Field(None, alias="jumlah_pemanen_hk")
     curah_hujan_mm: Optional[float] = Field(None, alias="curah_hujan_mm")
     rendemen_persen: Optional[float] = Field(None, alias="rendemen_persen")
 
