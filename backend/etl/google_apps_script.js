@@ -1,15 +1,17 @@
 /**
- * Google Apps Script - SIG PTPN Real-Time Integration (v2.1)
+ * Google Apps Script - SIG PTPN Real-Time Integration (v2.2)
  * 
  * Fitur Baru:
- * 1. Auto-create & Writeback ID: Menyisipkan kolom "id_fakta" secara otomatis dan menuliskan ID database kembali ke sheet.
- * 2. Edit/Replace Data: Baris yang sudah memiliki id_fakta akan di-update (termasuk tanggal & kegiatan).
- * 3. Hapus Data Terpilih: Menghapus data dari database & spreadsheet sekaligus via menu kustom.
+ * 1. Dua Menu Utama Terpisah: "Kirim data ke PTPN" dan "Hapus data" di bar atas Google Sheets.
+ * 2. Auto-create & Writeback ID: Menyisipkan kolom "id_fakta" secara otomatis dan menuliskan ID database kembali ke sheet.
+ * 3. Edit/Replace Data: Baris yang sudah memiliki id_fakta akan di-update (termasuk tanggal & kegiatan).
+ * 4. Hapus Data Terpilih: Menghapus data dari database & spreadsheet sekaligus.
  * 
  * Petunjuk Penggunaan:
  * 1. Di Google Sheets Anda, buka menu: Extensions -> Apps Script.
- * 2. Hapus kode lama, lalu salin (paste) seluruh isi script ini.
- * 3. Simpan proyek Apps Script, lalu reload Google Sheets Anda.
+ * 2. Hapus seluruh kode lama, lalu salin (paste) seluruh isi script ini.
+ * 3. Simpan proyek Apps Script dengan menekan tombol disket (Save).
+ * 4. PENTING: Muat ulang (reload/refresh) halaman Google Sheets Anda di browser agar tombol menu baru muncul.
  */
 
 // Konfigurasi Webhook
@@ -17,13 +19,18 @@ var API_BASE_URL = "https://sig-ptpn-1-regional-7.onrender.com/api/sync";
 var API_KEY = "kunci-rahasia-pilihan-anda-2026";                       
 
 /**
- * Membuat menu kustom saat Google Sheets dibuka.
+ * Membuat menu kustom di bar atas Google Sheets secara terpisah.
  */
 function onOpen() {
   var ui = SpreadsheetApp.getUi();
-  ui.createMenu('SIG PTPN R7')
-      .addItem('Kirim Data Sheet Aktif ke SIG', 'syncActiveSheetToSIG')
-      .addSeparator()
+  
+  // Menu 1: Kirim data ke PTPN
+  ui.createMenu('Kirim data ke PTPN')
+      .addItem('Kirim Data Sheet Aktif', 'syncActiveSheetToSIG')
+      .addToUi();
+      
+  // Menu 2: Hapus data
+  ui.createMenu('Hapus data')
       .addItem('Hapus Baris Terpilih dari Database', 'deleteSelectedRowsFromSIG')
       .addToUi();
 }

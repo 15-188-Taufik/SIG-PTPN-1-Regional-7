@@ -190,6 +190,12 @@ def sync_webhook(
                 if not id_afdeling:
                     errors.append(f"Baris {row_num}: Kolom id_afdeling kosong atau tidak valid.")
                     continue
+                
+                # Cek apakah id_afdeling terdaftar di database untuk mencegah ForeignKeyViolation
+                afd_exists = db.query(DimAfdeling).filter(DimAfdeling.id_afdeling == id_afdeling).first()
+                if not afd_exists:
+                    errors.append(f"Baris {row_num}: ID Afdeling '{id_afdeling}' tidak ditemukan di database.")
+                    continue
 
                 # Konversi dan defaultkan nilai jika None untuk mencegah error NOT NULL constraint di DB
                 target_ton = row_data.target_harian_ton if row_data.target_harian_ton is not None else 0.0
@@ -252,6 +258,12 @@ def sync_webhook(
                     blok_id = get_blok_id(db, row_data.kebun, row_data.afdeling, row_data.no_polygon, row_data.kode_blok)
                 if not blok_id:
                     errors.append(f"Baris {row_num}: Blok dengan Polygon '{row_data.no_polygon}' / Kode Blok '{row_data.kode_blok}' di Kebun '{row_data.kebun}' tidak ditemukan di tabel blok_kebun.")
+                    continue
+                
+                # Cek apakah blok_id terdaftar di database untuk mencegah ForeignKeyViolation
+                blok_exists = db.query(BlokKebun).filter(BlokKebun.id == blok_id).first()
+                if not blok_exists:
+                    errors.append(f"Baris {row_num}: Blok ID '{blok_id}' tidak ditemukan di tabel blok_kebun.")
                     continue
 
                 # Konversi tenaga_kerja secara aman (handle string non-angka seperti 'pribadi')
@@ -320,6 +332,12 @@ def sync_webhook(
                     blok_id = get_blok_id(db, row_data.kebun, row_data.afdeling, row_data.no_polygon, row_data.kode_blok)
                 if not blok_id:
                     errors.append(f"Baris {row_num}: Blok dengan Polygon '{row_data.no_polygon}' / Kode Blok '{row_data.kode_blok}' di Kebun '{row_data.kebun}' tidak ditemukan di tabel blok_kebun.")
+                    continue
+                
+                # Cek apakah blok_id terdaftar di database untuk mencegah ForeignKeyViolation
+                blok_exists = db.query(BlokKebun).filter(BlokKebun.id == blok_id).first()
+                if not blok_exists:
+                    errors.append(f"Baris {row_num}: Blok ID '{blok_id}' tidak ditemukan di tabel blok_kebun.")
                     continue
 
                 # Konversi tenaga_kerja secara aman
