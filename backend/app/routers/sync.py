@@ -191,8 +191,12 @@ def sync_webhook(
                     errors.append(f"Baris {row_num}: Kolom id_afdeling kosong atau tidak valid.")
                     continue
 
-                # Konversi jumlah_pemanen_hk dari float ke int (membulatkan ke bilangan bulat terdekat)
-                pemanen_hk = int(round(row_data.jumlah_pemanen_hk)) if row_data.jumlah_pemanen_hk is not None else None
+                # Konversi dan defaultkan nilai jika None untuk mencegah error NOT NULL constraint di DB
+                target_ton = row_data.target_harian_ton if row_data.target_harian_ton is not None else 0.0
+                prod_ton = row_data.produksi_aktual_ton if row_data.produksi_aktual_ton is not None else 0.0
+                pemanen_hk = int(round(row_data.jumlah_pemanen_hk)) if row_data.jumlah_pemanen_hk is not None else 0
+                hujan_mm = row_data.curah_hujan_mm if row_data.curah_hujan_mm is not None else 0.0
+                rendemen = row_data.rendemen_persen if row_data.rendemen_persen is not None else 0.0
 
                 record_exists = False
                 if row_id:
@@ -200,11 +204,11 @@ def sync_webhook(
                     if existing:
                         existing.tanggal = row_data.tanggal
                         existing.id_afdeling = id_afdeling
-                        existing.target_harian_ton = row_data.target_harian_ton
-                        existing.produksi_aktual_ton = row_data.produksi_aktual_ton
+                        existing.target_harian_ton = target_ton
+                        existing.produksi_aktual_ton = prod_ton
                         existing.jumlah_pemanen_hk = pemanen_hk
-                        existing.curah_hujan_mm = row_data.curah_hujan_mm
-                        existing.rendemen_persen = row_data.rendemen_persen
+                        existing.curah_hujan_mm = hujan_mm
+                        existing.rendemen_persen = rendemen
                         db.flush()
                         success_ids.append(row_id)
                         success_count += 1
@@ -215,11 +219,11 @@ def sync_webhook(
                     stmt = insert(FactProduksiHarian).values(
                         tanggal=row_data.tanggal,
                         id_afdeling=id_afdeling,
-                        target_harian_ton=row_data.target_harian_ton,
-                        produksi_aktual_ton=row_data.produksi_aktual_ton,
+                        target_harian_ton=target_ton,
+                        produksi_aktual_ton=prod_ton,
                         jumlah_pemanen_hk=pemanen_hk,
-                        curah_hujan_mm=row_data.curah_hujan_mm,
-                        rendemen_persen=row_data.rendemen_persen
+                        curah_hujan_mm=hujan_mm,
+                        rendemen_persen=rendemen
                     )
                     stmt = stmt.on_conflict_do_update(
                         constraint="uq_produksi_afdeling_tanggal",
