@@ -20,6 +20,7 @@ from app.schemas.sync import (
     ProduksiHarianRow,
     PemeliharaanHarianRow,
     PemupukanHarianRow,
+    DeleteRequestPayload,
 )
 
 logger = logging.getLogger("sync")
@@ -155,6 +156,7 @@ def sync_webhook(
     rows = payload.rows
 
     success_count = 0
+    success_ids = []
     errors = []
 
     # Pastikan koneksi DB tersedia
@@ -175,6 +177,7 @@ def sync_webhook(
 
                 # Validasi dengan schema Pydantic
                 row_data = ProduksiHarianRow(**raw_row)
+                row_id = getattr(row_data, "id_fakta", None)
                 
                 # Gunakan id_afdeling langsung jika dikirim dari sheet, jika tidak cari berdasarkan kebun & afdeling
                 id_afdeling = getattr(row_data, "id_afdeling", None)
@@ -191,32 +194,53 @@ def sync_webhook(
                 # Konversi jumlah_pemanen_hk dari float ke int (membulatkan ke bilangan bulat terdekat)
                 pemanen_hk = int(round(row_data.jumlah_pemanen_hk)) if row_data.jumlah_pemanen_hk is not None else None
 
-                # Lakukan UPSERT ke fact_produksi_harian
-                stmt = insert(FactProduksiHarian).values(
-                    tanggal=row_data.tanggal,
-                    id_afdeling=id_afdeling,
-                    target_harian_ton=row_data.target_harian_ton,
-                    produksi_aktual_ton=row_data.produksi_aktual_ton,
-                    jumlah_pemanen_hk=pemanen_hk,
-                    curah_hujan_mm=row_data.curah_hujan_mm,
-                    rendemen_persen=row_data.rendemen_persen
-                )
-                stmt = stmt.on_conflict_do_update(
-                    constraint="uq_produksi_afdeling_tanggal",
-                    set_={
-                        "target_harian_ton": stmt.excluded.target_harian_ton,
-                        "produksi_aktual_ton": stmt.excluded.produksi_aktual_ton,
-                        "jumlah_pemanen_hk": stmt.excluded.jumlah_pemanen_hk,
-                        "curah_hujan_mm": stmt.excluded.curah_hujan_mm,
-                        "rendemen_persen": stmt.excluded.rendemen_persen
-                    }
-                )
-                db.execute(stmt)
-                success_count += 1
+                record_exists = False
+                if row_id:
+                    existing = db.query(FactProduksiHarian).filter(FactProduksiHarian.id_fakta == row_id).first()
+                    if existing:
+                        existing.tanggal = row_data.tanggal
+                        existing.id_afdeling = id_afdeling
+                        existing.target_harian_ton = row_data.target_harian_ton
+                        existing.produksi_aktual_ton = row_data.produksi_aktual_ton
+                        existing.jumlah_pemanen_hk = pemanen_hk
+                        existing.curah_hujan_mm = row_data.curah_hujan_mm
+                        existing.rendemen_persen = row_data.rendemen_persen
+                        db.flush()
+                        success_ids.append(row_id)
+                        success_count += 1
+                        record_exists = True
+
+                if not record_exists:
+                    # Lakukan UPSERT ke fact_produksi_harian
+                    stmt = insert(FactProduksiHarian).values(
+                        tanggal=row_data.tanggal,
+                        id_afdeling=id_afdeling,
+                        target_harian_ton=row_data.target_harian_ton,
+                        produksi_aktual_ton=row_data.produksi_aktual_ton,
+                        jumlah_pemanen_hk=pemanen_hk,
+                        curah_hujan_mm=row_data.curah_hujan_mm,
+                        rendemen_persen=row_data.rendemen_persen
+                    )
+                    stmt = stmt.on_conflict_do_update(
+                        constraint="uq_produksi_afdeling_tanggal",
+                        set_={
+                            "target_harian_ton": stmt.excluded.target_harian_ton,
+                            "produksi_aktual_ton": stmt.excluded.produksi_aktual_ton,
+                            "jumlah_pemanen_hk": stmt.excluded.jumlah_pemanen_hk,
+                            "curah_hujan_mm": stmt.excluded.curah_hujan_mm,
+                            "rendemen_persen": stmt.excluded.rendemen_persen
+                        }
+                    )
+                    stmt = stmt.returning(FactProduksiHarian.id_fakta)
+                    res = db.execute(stmt)
+                    new_id = res.scalar()
+                    success_ids.append(new_id)
+                    success_count += 1
 
             # 2. PROSES PEMELIHARAAN HARIAN
             elif sheet_type == "pemeliharaan_harian":
                 row_data = PemeliharaanHarianRow(**raw_row)
+                row_id = getattr(row_data, "id_fakta", None)
                 
                 # Gunakan blok_id langsung jika ada di sheet, jika tidak lakukan lookup
                 blok_id = getattr(row_data, "blok_id", None)
@@ -235,34 +259,56 @@ def sync_webhook(
                     except ValueError:
                         tenaga_kerja_val = None
 
-                # Lakukan UPSERT ke fact_pemeliharaan_harian
-                stmt = insert(FactPemeliharaanHarian).values(
-                    blok_id=blok_id,
-                    tanggal=row_data.tanggal,
-                    jenis_kegiatan=row_data.jenis_kegiatan,
-                    material=row_data.material,
-                    dosis_aplikasi=row_data.dosis_aplikasi,
-                    luas_aplikasi=row_data.luas_aplikasi,
-                    tenaga_kerja=tenaga_kerja_val,
-                    keterangan=row_data.keterangan
-                )
-                stmt = stmt.on_conflict_do_update(
-                    constraint="uq_pemeliharaan_blok_tanggal_kegiatan",
-                    set_={
-                        "material": stmt.excluded.material,
-                        "dosis_aplikasi": stmt.excluded.dosis_aplikasi,
-                        "luas_aplikasi": stmt.excluded.luas_aplikasi,
-                        "tenaga_kerja": stmt.excluded.tenaga_kerja,
-                        "keterangan": stmt.excluded.keterangan,
-                        "updated_at": stmt.excluded.updated_at
-                    }
-                )
-                db.execute(stmt)
-                success_count += 1
+                record_exists = False
+                if row_id:
+                    existing = db.query(FactPemeliharaanHarian).filter(FactPemeliharaanHarian.id == row_id).first()
+                    if existing:
+                        existing.blok_id = blok_id
+                        existing.tanggal = row_data.tanggal
+                        existing.jenis_kegiatan = row_data.jenis_kegiatan
+                        existing.material = row_data.material
+                        existing.dosis_aplikasi = row_data.dosis_aplikasi
+                        existing.luas_aplikasi = row_data.luas_aplikasi
+                        existing.tenaga_kerja = tenaga_kerja_val
+                        existing.keterangan = row_data.keterangan
+                        db.flush()
+                        success_ids.append(row_id)
+                        success_count += 1
+                        record_exists = True
+
+                if not record_exists:
+                    # Lakukan UPSERT ke fact_pemeliharaan_harian
+                    stmt = insert(FactPemeliharaanHarian).values(
+                        blok_id=blok_id,
+                        tanggal=row_data.tanggal,
+                        jenis_kegiatan=row_data.jenis_kegiatan,
+                        material=row_data.material,
+                        dosis_aplikasi=row_data.dosis_aplikasi,
+                        luas_aplikasi=row_data.luas_aplikasi,
+                        tenaga_kerja=tenaga_kerja_val,
+                        keterangan=row_data.keterangan
+                    )
+                    stmt = stmt.on_conflict_do_update(
+                        constraint="uq_pemeliharaan_blok_tanggal_kegiatan",
+                        set_={
+                            "material": stmt.excluded.material,
+                            "dosis_aplikasi": stmt.excluded.dosis_aplikasi,
+                            "luas_aplikasi": stmt.excluded.luas_aplikasi,
+                            "tenaga_kerja": stmt.excluded.tenaga_kerja,
+                            "keterangan": stmt.excluded.keterangan,
+                            "updated_at": stmt.excluded.updated_at
+                        }
+                    )
+                    stmt = stmt.returning(FactPemeliharaanHarian.id)
+                    res = db.execute(stmt)
+                    new_id = res.scalar()
+                    success_ids.append(new_id)
+                    success_count += 1
 
             # 3. PROSES PEMUPUKAN HARIAN
             elif sheet_type == "pemupukan_harian":
                 row_data = PemupukanHarianRow(**raw_row)
+                row_id = getattr(row_data, "id_fakta", None)
                 
                 # Gunakan blok_id langsung jika ada di sheet, jika tidak lakukan lookup
                 blok_id = getattr(row_data, "blok_id", None)
@@ -281,28 +327,48 @@ def sync_webhook(
                     except ValueError:
                         tenaga_kerja_val = None
 
-                # Lakukan UPSERT ke fact_pemupukan_harian
-                stmt = insert(FactPemupukanHarian).values(
-                    blok_id=blok_id,
-                    tanggal=row_data.tanggal,
-                    jenis_pupuk=row_data.jenis_pupuk,
-                    jumlah_pupuk=row_data.jumlah_pupuk,
-                    luas_aplikasi=row_data.luas_aplikasi,
-                    tenaga_kerja=tenaga_kerja_val,
-                    keterangan=row_data.keterangan
-                )
-                stmt = stmt.on_conflict_do_update(
-                    constraint="uq_pemupukan_blok_tanggal_pupuk",
-                    set_={
-                        "jumlah_pupuk": stmt.excluded.jumlah_pupuk,
-                        "luas_aplikasi": stmt.excluded.luas_aplikasi,
-                        "tenaga_kerja": stmt.excluded.tenaga_kerja,
-                        "keterangan": stmt.excluded.keterangan,
-                        "updated_at": stmt.excluded.updated_at
-                    }
-                )
-                db.execute(stmt)
-                success_count += 1
+                record_exists = False
+                if row_id:
+                    existing = db.query(FactPemupukanHarian).filter(FactPemupukanHarian.id == row_id).first()
+                    if existing:
+                        existing.blok_id = blok_id
+                        existing.tanggal = row_data.tanggal
+                        existing.jenis_pupuk = row_data.jenis_pupuk
+                        existing.jumlah_pupuk = row_data.jumlah_pupuk
+                        existing.luas_aplikasi = row_data.luas_aplikasi
+                        existing.tenaga_kerja = tenaga_kerja_val
+                        existing.keterangan = row_data.keterangan
+                        db.flush()
+                        success_ids.append(row_id)
+                        success_count += 1
+                        record_exists = True
+
+                if not record_exists:
+                    # Lakukan UPSERT ke fact_pemupukan_harian
+                    stmt = insert(FactPemupukanHarian).values(
+                        blok_id=blok_id,
+                        tanggal=row_data.tanggal,
+                        jenis_pupuk=row_data.jenis_pupuk,
+                        jumlah_pupuk=row_data.jumlah_pupuk,
+                        luas_aplikasi=row_data.luas_aplikasi,
+                        tenaga_kerja=tenaga_kerja_val,
+                        keterangan=row_data.keterangan
+                    )
+                    stmt = stmt.on_conflict_do_update(
+                        constraint="uq_pemupukan_blok_tanggal_pupuk",
+                        set_={
+                            "jumlah_pupuk": stmt.excluded.jumlah_pupuk,
+                            "luas_aplikasi": stmt.excluded.luas_aplikasi,
+                            "tenaga_kerja": stmt.excluded.tenaga_kerja,
+                            "keterangan": stmt.excluded.keterangan,
+                            "updated_at": stmt.excluded.updated_at
+                        }
+                    )
+                    stmt = stmt.returning(FactPemupukanHarian.id)
+                    res = db.execute(stmt)
+                    new_id = res.scalar()
+                    success_ids.append(new_id)
+                    success_count += 1
 
             else:
                 errors.append(f"Baris {row_num}: Tipe sheet '{sheet_type}' tidak dikenali.")
@@ -326,5 +392,45 @@ def sync_webhook(
         "status": "success" if not errors else "partial_success",
         "processed": len(rows),
         "inserted_updated": success_count,
+        "row_ids": success_ids,
         "errors": errors
+    }
+
+
+@router.post("/delete", summary="Menghapus data baris tertentu berdasarkan ID")
+def delete_records(
+    payload: DeleteRequestPayload,
+    db: Session = Depends(get_db),
+    _: str = Depends(verify_api_key)
+):
+    """Menghapus data harian dari database berdasarkan list ID yang dikirim."""
+    sheet_type = payload.sheet_type
+    ids = payload.ids
+
+    if not ids:
+        return {"status": "success", "deleted_count": 0, "message": "Tidak ada ID yang diberikan."}
+
+    deleted_count = 0
+    try:
+        if sheet_type == "produksi_harian":
+            deleted_count = db.query(FactProduksiHarian).filter(FactProduksiHarian.id_fakta.in_(ids)).delete(synchronize_session=False)
+        elif sheet_type == "pemeliharaan_harian":
+            deleted_count = db.query(FactPemeliharaanHarian).filter(FactPemeliharaanHarian.id.in_(ids)).delete(synchronize_session=False)
+        elif sheet_type == "pemupukan_harian":
+            deleted_count = db.query(FactPemupukanHarian).filter(FactPemupukanHarian.id.in_(ids)).delete(synchronize_session=False)
+        else:
+            raise HTTPException(status_code=400, detail=f"Tipe sheet '{sheet_type}' tidak dikenali.")
+
+        db.commit()
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(
+            status_code=500,
+            detail=f"Gagal menghapus data. Detail: {str(e)}"
+        )
+
+    return {
+        "status": "success",
+        "deleted_count": deleted_count,
+        "message": f"Berhasil menghapus {deleted_count} data dari tabel {sheet_type}."
     }
