@@ -253,8 +253,16 @@ def main():
     try:
         conn = psycopg2.connect(DATABASE_URL)
         print("Koneksi berhasil!")
+        
+        # Bersihkan data lama untuk menghindari duplikasi akibat perubahan nama unit (conflict key)
+        print("Membersihkan data lama di tabel blok_kebun...")
+        cur = conn.cursor()
+        cur.execute("DELETE FROM blok_kebun;")
+        conn.commit()
+        cur.close()
+        print("Data lama berhasil dibersihkan.")
     except Exception as e:
-        print(f"[ERROR] Gagal koneksi: {e}")
+        print(f"[ERROR] Gagal koneksi atau pembersihan database: {e}")
         sys.exit(1)
 
     for filepath in geojson_files:
