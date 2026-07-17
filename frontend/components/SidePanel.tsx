@@ -5,17 +5,20 @@ import { StatsResponse, GeoJSONFeature, FeatureCollection } from '@/types/kebun'
 import { ViewMode } from './MapView';
 
 const KEBUN_COLORS: Record<string, string> = {
-  'Unit Bekri': '#0072B2',
+  'Unit Way Berulu': '#0072B2',
   'Unit Bergen': '#009E73',
-  'Unit Rejosari': '#CC79A7',
-  'Unit Way Berulu': '#E69F00',
+  'Unit Way Lima': '#CC79A7',
+  'Unit Tulungbuyut': '#E69F00',
   'Unit Kedaton': '#56B4E9',
 };
 
 export function getKebunDisplayName(name: string | null): string {
   if (!name) return '-';
   const norm = name.trim();
-  if (norm.toLowerCase() === 'wabe') return 'Way Berulu';
+  const lower = norm.toLowerCase();
+  if (lower === 'wabe' || lower === 'unit bekri') return 'Unit Way Berulu';
+  if (lower === 'wali' || lower === 'unit rejosari') return 'Unit Way Lima';
+  if (lower === 'tubu') return 'Unit Tulungbuyut';
   return norm;
 }
 

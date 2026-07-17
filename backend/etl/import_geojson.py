@@ -104,11 +104,11 @@ def process_feature(feature: dict, source_file: str) -> tuple | None:
             elif "kedaton" in sf_lower:
                 val = "Unit Kedaton"
             elif "tubu" in sf_lower:
-                val = "Unit Way Berulu"
+                val = "Unit Tulungbuyut"
             elif "wabe" in sf_lower:
-                val = "Unit Bekri"
+                val = "Unit Way Berulu"
             elif "wali" in sf_lower:
-                val = "Unit Rejosari"
+                val = "Unit Way Lima"
             else:
                 val = "Unit Bergen"
 

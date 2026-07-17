@@ -51,11 +51,11 @@ class GeoJSONFallback:
                     elif "kedaton" in sf_lower:
                         kebun_name = "Unit Kedaton"
                     elif "tubu" in sf_lower:
-                        kebun_name = "Unit Way Berulu"
+                        kebun_name = "Unit Tulungbuyut"
                     elif "wabe" in sf_lower:
-                        kebun_name = "Unit Bekri"
+                        kebun_name = "Unit Way Berulu"
                     elif "wali" in sf_lower:
-                        kebun_name = "Unit Rejosari"
+                        kebun_name = "Unit Way Lima"
                     else:
                         kebun_name = "Unit Bergen"
 
