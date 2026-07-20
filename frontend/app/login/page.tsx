@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { login } from '@/lib/api';
+import { login, warmupBackend } from '@/lib/api';
 import { saveToken, isAuthenticated } from '@/lib/auth';
 import CarbonLoader from '@/components/CarbonLoader';
 
@@ -12,9 +12,18 @@ export default function LoginPage() {
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [serverWarming, setServerWarming] = useState(false);
+  const [serverReady, setServerReady] = useState(false);
 
   useEffect(() => {
     if (isAuthenticated()) router.replace('/dashboard');
+    
+    // Background ping to wake up Render free tier container immediately on page load
+    setServerWarming(true);
+    warmupBackend().then((ready) => {
+      setServerWarming(false);
+      setServerReady(ready);
+    });
   }, [router]);
 
   // Prevent duplicate submissions and show loading cursor during login
@@ -65,6 +74,19 @@ export default function LoginPage() {
           <h1 style={loginStyles.title}>SIG PTPN</h1>
           <p style={loginStyles.subtitle}>Sistem Informasi Geografis Lahan</p>
           <p style={loginStyles.region}>PTPN I Regional 7 — Lampung</p>
+          
+          {/* Server Connection Status Indicator */}
+          <div style={{ marginTop: '8px', fontSize: '11px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}>
+            {serverWarming ? (
+              <span style={{ color: '#0f62fe', fontWeight: '500', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                <span style={{ animation: 'pulse 1.5s infinite' }}>⚡</span> Membangunkan server backend...
+              </span>
+            ) : serverReady ? (
+              <span style={{ color: '#006A4E', fontWeight: '600', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                <span style={{ color: '#1CC729' }}>●</span> Server backend siap
+              </span>
+            ) : null}
+          </div>
         </div>
 
         {/* Form */}

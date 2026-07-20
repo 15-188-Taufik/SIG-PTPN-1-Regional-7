@@ -81,4 +81,14 @@ export async function fetchBlokHistory(blokId: number): Promise<{
   return res.data;
 }
 
+export async function warmupBackend(): Promise<boolean> {
+  try {
+    const rootUrl = API_URL.replace(/\/api\/?$/, '');
+    await axios.get(rootUrl, { timeout: 15000 });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 export default api;
