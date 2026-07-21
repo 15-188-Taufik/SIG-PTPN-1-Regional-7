@@ -37,6 +37,7 @@ export default function ProduksiPage() {
   const [startDate, setStartDate] = useState<string>('');
   const [endDate, setEndDate] = useState<string>('');
   const [search, setSearch] = useState<string>('');
+  const [sortOrder, setSortOrder] = useState<'desc' | 'asc'>('desc');
 
   // Pagination
   const [pageSize, setPageSize] = useState<number>(50);
@@ -77,7 +78,8 @@ export default function ProduksiPage() {
         start_date: startDate || undefined,
         end_date: endDate || undefined,
         search: search.trim() || undefined,
-        limit: 500,
+        sort_order: sortOrder,
+        limit: 2000,
       });
       setData(res);
       setCurrentPage(1);
@@ -86,7 +88,7 @@ export default function ProduksiPage() {
     } finally {
       setLoading(false);
     }
-  }, [selectedKebun, selectedAfdeling, startDate, endDate, search]);
+  }, [selectedKebun, selectedAfdeling, startDate, endDate, search, sortOrder]);
 
   useEffect(() => {
     loadData();
@@ -136,6 +138,7 @@ export default function ProduksiPage() {
     setStartDate('');
     setEndDate('');
     setSearch('');
+    setSortOrder('desc');
   }
 
   return (
@@ -242,6 +245,18 @@ export default function ProduksiPage() {
                 onChange={(e) => setEndDate(e.target.value)}
                 style={styles.filterInput}
               />
+            </div>
+
+            <div style={styles.filterGroup}>
+              <label style={styles.filterLabel}>Urutkan Tanggal</label>
+              <select
+                value={sortOrder}
+                onChange={(e) => setSortOrder(e.target.value as 'desc' | 'asc')}
+                style={styles.filterInput}
+              >
+                <option value="desc">Terbaru ke Terlama</option>
+                <option value="asc">Terlama ke Terbaru</option>
+              </select>
             </div>
 
             <div style={{ ...styles.filterGroup, flex: 2 }}>
@@ -365,10 +380,10 @@ export default function ProduksiPage() {
                   }}
                   style={styles.pageSizeSelect}
                 >
-                  <option value={25}>25</option>
                   <option value={50}>50</option>
                   <option value={100}>100</option>
-                  <option value={250}>250</option>
+                  <option value={500}>500</option>
+                  <option value={1000}>1000</option>
                 </select>
               </div>
 
@@ -416,93 +431,104 @@ export default function ProduksiPage() {
 
 const styles: Record<string, React.CSSProperties> = {
   container: {
-    minHeight: '100vh',
+    height: '100vh',
+    maxHeight: '100vh',
+    display: 'flex',
+    flexDirection: 'column',
+    overflow: 'hidden',
     background: '#f4f4f4',
     fontFamily: "'Inter', sans-serif",
   },
   mainContent: {
+    flex: 1,
+    minHeight: 0,
     maxWidth: '1400px',
+    width: '100%',
     margin: '0 auto',
-    padding: '24px 16px',
+    padding: '12px 16px',
     display: 'flex',
     flexDirection: 'column',
-    gap: '20px',
+    gap: '10px',
+    overflow: 'hidden',
   },
   titleSection: {
+    flex: '0 0 auto',
     display: 'flex',
     justifyContent: 'space-between',
     alignItems: 'center',
     flexWrap: 'wrap',
-    gap: '12px',
+    gap: '8px',
   },
   pageTitle: {
     margin: 0,
-    fontSize: '20px',
+    fontSize: '18px',
     fontWeight: '700',
     color: '#161616',
   },
   pageSubtitle: {
-    margin: '4px 0 0 0',
-    fontSize: '13px',
+    margin: '2px 0 0 0',
+    fontSize: '12px',
     color: '#525252',
   },
   btnPrimary: {
     background: '#24a148',
     color: '#ffffff',
     border: 'none',
-    padding: '10px 18px',
-    fontSize: '13px',
+    padding: '8px 14px',
+    fontSize: '12px',
     fontWeight: '600',
     borderRadius: '2px',
     cursor: 'pointer',
     boxShadow: '0 2px 4px rgba(0,0,0,0.15)',
   },
   kpiGrid: {
+    flex: '0 0 auto',
     display: 'grid',
-    gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))',
-    gap: '16px',
+    gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+    gap: '10px',
   },
   kpiCard: {
     background: '#ffffff',
     border: '1px solid #e0e0e0',
     borderTop: '3px solid #24a148',
-    padding: '16px',
+    padding: '10px 14px',
     borderRadius: '2px',
     boxShadow: '0 1px 3px rgba(0,0,0,0.05)',
   },
   kpiLabel: {
-    fontSize: '12px',
+    fontSize: '11px',
     fontWeight: '600',
     color: '#525252',
     textTransform: 'uppercase',
   },
   kpiValue: {
-    fontSize: '26px',
+    fontSize: '22px',
     fontWeight: '700',
     color: '#161616',
-    margin: '8px 0 4px 0',
+    margin: '4px 0 2px 0',
   },
   kpiSub: {
     fontSize: '11px',
     color: '#8d8d8d',
   },
   filterCard: {
+    flex: '0 0 auto',
     background: '#ffffff',
     border: '1px solid #e0e0e0',
-    padding: '16px',
+    padding: '10px 14px',
     borderRadius: '2px',
   },
   filterGrid: {
     display: 'flex',
     flexWrap: 'wrap',
-    gap: '12px',
+    gap: '10px',
     alignItems: 'flex-end',
   },
   filterGroup: {
     display: 'flex',
     flexDirection: 'column',
-    gap: '4px',
-    flex: '1 1 160px',
+    gap: '3px',
+    flex: '1 1 140px',
   },
   filterLabel: {
     fontSize: '11px',
@@ -510,7 +536,7 @@ const styles: Record<string, React.CSSProperties> = {
     color: '#525252',
   },
   filterInput: {
-    padding: '7px 10px',
+    padding: '5px 8px',
     fontSize: '12px',
     border: '1px solid #8d8d8d',
     borderRadius: '2px',
@@ -521,35 +547,40 @@ const styles: Record<string, React.CSSProperties> = {
     background: '#393939',
     color: '#ffffff',
     border: 'none',
-    padding: '8px 14px',
+    padding: '6px 12px',
     fontSize: '12px',
     fontWeight: '500',
     borderRadius: '2px',
     cursor: 'pointer',
   },
   errorAlert: {
+    flex: '0 0 auto',
     background: '#fff0f1',
     color: '#da1e28',
-    padding: '12px 16px',
-    fontSize: '13px',
+    padding: '8px 12px',
+    fontSize: '12px',
     borderLeft: '4px solid #da1e28',
   },
   tableCard: {
+    flex: 1,
+    minHeight: 0,
     background: '#ffffff',
     border: '1px solid #e0e0e0',
     borderRadius: '2px',
     boxShadow: '0 1px 3px rgba(0,0,0,0.05)',
     display: 'flex',
     flexDirection: 'column',
+    overflow: 'hidden',
   },
   tableHeaderBar: {
-    padding: '12px 16px',
+    flex: '0 0 auto',
+    padding: '8px 14px',
     background: '#e0e0e0',
     borderBottom: '1px solid #d1d1d1',
   },
   tableScrollWrapper: {
-    maxHeight: 'calc(100vh - 380px)',
-    minHeight: '320px',
+    flex: 1,
+    minHeight: 0,
     overflowY: 'auto',
   },
   table: {
@@ -565,7 +596,7 @@ const styles: Record<string, React.CSSProperties> = {
     zIndex: 10,
   },
   th: {
-    padding: '10px 12px',
+    padding: '8px 10px',
     textAlign: 'left',
     fontWeight: '600',
     fontSize: '11px',
@@ -578,7 +609,7 @@ const styles: Record<string, React.CSSProperties> = {
     background: '#f4f4f4',
   },
   td: {
-    padding: '10px 12px',
+    padding: '8px 10px',
     borderBottom: '1px solid #e0e0e0',
     color: '#161616',
   },
@@ -586,7 +617,7 @@ const styles: Record<string, React.CSSProperties> = {
     background: '#e8f0fe',
     color: '#0f62fe',
     border: '1px solid #b3d1ff',
-    padding: '4px 8px',
+    padding: '3px 7px',
     fontSize: '11px',
     borderRadius: '2px',
     cursor: 'pointer',
@@ -599,7 +630,7 @@ const styles: Record<string, React.CSSProperties> = {
     background: '#fff0f1',
     color: '#da1e28',
     border: '1px solid #ffb3b8',
-    padding: '4px 8px',
+    padding: '3px 7px',
     fontSize: '11px',
     borderRadius: '2px',
     cursor: 'pointer',
@@ -609,17 +640,18 @@ const styles: Record<string, React.CSSProperties> = {
     gap: '4px',
   },
   paginationFooter: {
-    padding: '10px 16px',
+    flex: '0 0 auto',
+    padding: '8px 14px',
     background: '#ffffff',
     borderTop: '1px solid #e0e0e0',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'space-between',
     flexWrap: 'wrap',
-    gap: '12px',
+    gap: '8px',
   },
   pageSizeSelect: {
-    padding: '4px 8px',
+    padding: '3px 6px',
     fontSize: '12px',
     border: '1px solid #8d8d8d',
     borderRadius: '2px',
@@ -629,7 +661,7 @@ const styles: Record<string, React.CSSProperties> = {
     background: '#393939',
     color: '#ffffff',
     border: 'none',
-    padding: '4px 10px',
+    padding: '3px 8px',
     fontSize: '11px',
     borderRadius: '2px',
     cursor: 'pointer',

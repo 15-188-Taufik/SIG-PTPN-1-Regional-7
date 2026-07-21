@@ -36,7 +36,8 @@ def get_pemeliharaan(
     start_date: Optional[date] = Query(None, description="Tanggal mulai (YYYY-MM-DD)"),
     end_date: Optional[date] = Query(None, description="Tanggal akhir (YYYY-MM-DD)"),
     search: Optional[str] = Query(None, description="Pencarian kata kunci"),
-    limit: int = Query(200, ge=1, le=1000),
+    sort_order: Optional[str] = Query("desc", description="Urutan tanggal: desc (terbaru ke terlama) atau asc (terlama ke terbaru)"),
+    limit: int = Query(1000, ge=1, le=5000),
     offset: int = Query(0, ge=0),
     db: Session = Depends(get_db),
     _user: dict = Depends(get_current_user),
@@ -100,7 +101,8 @@ def get_pemeliharaan(
     total_dosis = float(metrics[1]) if metrics else 0.0
     total_hk = int(metrics[2]) if metrics else 0
 
-    results = query.order_by(FactPemeliharaanHarian.tanggal.desc()).offset(offset).limit(limit).all()
+    order_clause = FactPemeliharaanHarian.tanggal.asc() if (sort_order and sort_order.lower() == 'asc') else FactPemeliharaanHarian.tanggal.desc()
+    results = query.order_by(order_clause, FactPemeliharaanHarian.id.desc()).offset(offset).limit(limit).all()
 
     items = []
     for row, k_nama, a_nama, k_blok in results:
@@ -230,7 +232,8 @@ def get_pemupukan(
     start_date: Optional[date] = Query(None, description="Tanggal mulai (YYYY-MM-DD)"),
     end_date: Optional[date] = Query(None, description="Tanggal akhir (YYYY-MM-DD)"),
     search: Optional[str] = Query(None, description="Pencarian kata kunci"),
-    limit: int = Query(200, ge=1, le=1000),
+    sort_order: Optional[str] = Query("desc", description="Urutan tanggal: desc (terbaru ke terlama) atau asc (terlama ke terbaru)"),
+    limit: int = Query(1000, ge=1, le=5000),
     offset: int = Query(0, ge=0),
     db: Session = Depends(get_db),
     _user: dict = Depends(get_current_user),
@@ -290,7 +293,8 @@ def get_pemupukan(
     total_pupuk = float(metrics[1]) if metrics else 0.0
     total_hk = int(metrics[2]) if metrics else 0
 
-    results = query.order_by(FactPemupukanHarian.tanggal.desc()).offset(offset).limit(limit).all()
+    order_clause = FactPemupukanHarian.tanggal.asc() if (sort_order and sort_order.lower() == 'asc') else FactPemupukanHarian.tanggal.desc()
+    results = query.order_by(order_clause, FactPemupukanHarian.id.desc()).offset(offset).limit(limit).all()
 
     items = []
     for row, k_nama, a_nama, k_blok in results:
@@ -417,7 +421,8 @@ def get_produksi(
     start_date: Optional[date] = Query(None, description="Tanggal mulai (YYYY-MM-DD)"),
     end_date: Optional[date] = Query(None, description="Tanggal akhir (YYYY-MM-DD)"),
     search: Optional[str] = Query(None, description="Pencarian kata kunci"),
-    limit: int = Query(200, ge=1, le=1000),
+    sort_order: Optional[str] = Query("desc", description="Urutan tanggal: desc (terbaru ke terlama) atau asc (terlama ke terbaru)"),
+    limit: int = Query(1000, ge=1, le=5000),
     offset: int = Query(0, ge=0),
     db: Session = Depends(get_db),
     _user: dict = Depends(get_current_user),
@@ -478,7 +483,8 @@ def get_produksi(
     total_pemanen = int(metrics[2]) if metrics else 0
     capaian_persen = (total_aktual / total_target * 100.0) if total_target > 0 else 0.0
 
-    results = query.order_by(FactProduksiHarian.tanggal.desc()).offset(offset).limit(limit).all()
+    order_clause = FactProduksiHarian.tanggal.asc() if (sort_order and sort_order.lower() == 'asc') else FactProduksiHarian.tanggal.desc()
+    results = query.order_by(order_clause, FactProduksiHarian.id_fakta.desc()).offset(offset).limit(limit).all()
 
     items = []
     for row, k_nama, a_nama in results:

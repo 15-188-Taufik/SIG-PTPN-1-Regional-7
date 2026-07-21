@@ -252,6 +252,7 @@ export async function fetchPemeliharaanList(params?: {
   start_date?: string;
   end_date?: string;
   search?: string;
+  sort_order?: 'desc' | 'asc';
   limit?: number;
   offset?: number;
 }): Promise<PemeliharaanListResponse> {
@@ -279,6 +280,7 @@ export async function fetchPemupukanList(params?: {
   start_date?: string;
   end_date?: string;
   search?: string;
+  sort_order?: 'desc' | 'asc';
   limit?: number;
   offset?: number;
 }): Promise<PemupukanListResponse> {
@@ -332,6 +334,7 @@ export async function fetchProduksiList(params?: {
   start_date?: string;
   end_date?: string;
   search?: string;
+  sort_order?: 'desc' | 'asc';
   limit?: number;
   offset?: number;
 }): Promise<ProduksiListResponse> {
