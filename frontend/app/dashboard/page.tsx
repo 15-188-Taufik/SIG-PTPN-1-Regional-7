@@ -12,6 +12,8 @@ import SidePanel from '@/components/SidePanel';
 import type { ViewMode } from '@/components/MapView';
 import CarbonLoader from '@/components/CarbonLoader';
 
+import HeaderNav from '@/components/HeaderNav';
+
 // Dynamically import Leaflet map (client-side only, no SSR)
 const MapView = dynamic(() => import('@/components/MapView'), { ssr: false });
 
@@ -32,7 +34,6 @@ export default function DashboardPage() {
   const [mounted, setMounted] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const mapInstanceRef = useRef<any>(null);
-  const username = getUsername();
 
   // Set mounted status on client load
   useEffect(() => {
@@ -56,14 +57,16 @@ export default function DashboardPage() {
     return () => document.body.classList.remove('loading-state');
   }, [loading]);
 
-  // Load initial data in parallel
-  const loadData = useCallback(async () => {
+  // Load initial data in parallel (utilizing in-memory cache for instant tab switching)
+  const loadData = useCallback(async (forceRefresh = false) => {
     try {
-      setLoading(true);
+      if (!geojsonData || forceRefresh) {
+        setLoading(true);
+      }
       const [geoData, statsData, listData] = await Promise.all([
-        fetchKebun(),
-        fetchStats(),
-        fetchKebunList(),
+        fetchKebun(undefined, forceRefresh),
+        fetchStats(forceRefresh),
+        fetchKebunList(forceRefresh),
       ]);
       // Sort kebun names: alphabetical order, but KSO is placed at the very bottom
       const sortedList = [...listData].sort((a, b) => a.localeCompare(b));
@@ -86,11 +89,11 @@ export default function DashboardPage() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [geojsonData]);
 
   useEffect(() => {
     loadData();
-  }, [loadData]);
+  }, []);
 
   const handleToggleKebun = useCallback((kebun: string) => {
     setActiveKebun((prev) =>
@@ -166,111 +169,8 @@ export default function DashboardPage() {
         fontFamily: "'IBM Plex Sans', sans-serif",
       }}
     >
-      {/* Top Header (IBM Carbon Shell Header) */}
-      <header
-        style={{
-          height: '48px',
-          background: '#ffffff',
-          borderBottom: '1px solid var(--cds-border)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          padding: '0 16px',
-          zIndex: 1100,
-          flexShrink: 0,
-        }}
-      >
-        {/* Brand Logo & Title */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-          <div
-            style={{
-              width: '4px',
-              height: '20px',
-              background: 'var(--cds-primary)',
-            }}
-          />
-          <div style={{ display: 'flex', alignItems: 'baseline', gap: '8px' }}>
-            <span
-              style={{
-                fontSize: '14px',
-                fontWeight: '700',
-                color: 'var(--cds-text-primary)',
-                letterSpacing: '0.02em',
-              }}
-            >
-              SIG PTPN
-            </span>
-            <span
-              style={{
-                fontSize: '11px',
-                color: 'var(--cds-text-secondary)',
-                fontWeight: '400',
-              }}
-            >
-              Regional 7 Lampung
-            </span>
-          </div>
-        </div>
-
-        {/* User profile & actions */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
-          {mounted && username && (
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <div
-                style={{
-                  width: '24px',
-                  height: '24px',
-                  borderRadius: '50%',
-                  background: 'var(--cds-primary)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  fontSize: '11px',
-                  fontWeight: '600',
-                  color: '#ffffff',
-                }}
-              >
-                {username.charAt(0).toUpperCase()}
-              </div>
-              <span
-                style={{
-                  fontSize: '12px',
-                  color: 'var(--cds-text-secondary)',
-                  fontWeight: '500',
-                }}
-              >
-                {username}
-              </span>
-            </div>
-          )}
-          <button
-            onClick={handleLogout}
-            style={{
-              background: 'none',
-              border: 'none',
-              color: 'var(--cds-support-error)',
-              fontSize: '12px',
-              fontWeight: '600',
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '4px',
-              fontFamily: 'inherit',
-            }}
-          >
-            <svg width="14" height="14" viewBox="0 0 16 16" fill="none" style={{ transform: 'scaleX(-1)' }}>
-              <path
-                d="M3 2H5C5.55 2 6 2.45 6 3V13C6 13.55 5.55 14 5 14H3M13 8H6M13 8L10 5M13 8L10 11"
-                stroke="currentColor"
-                strokeWidth="1.5"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              />
-            </svg>
-            Keluar
-          </button>
-        </div>
-      </header>
+      {/* Top Header Navigation */}
+      <HeaderNav />
 
       {/* Main Grid Area */}
       <div style={{ display: 'flex', flex: 1, position: 'relative', overflow: 'hidden' }}>

@@ -3,7 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
 from contextlib import asynccontextmanager
 from app.config import settings
-from app.routers import auth, kebun, sync
+from app.routers import auth, kebun, sync, kegiatan
 from app.routers.kebun import GeoJSONFallback
 
 
@@ -27,7 +27,7 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.get_cors_origins(),
     allow_credentials=True,
-    allow_methods=["GET", "POST", "OPTIONS"],
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     allow_headers=["Authorization", "Content-Type", "Accept"],
 )
 app.add_middleware(GZipMiddleware, minimum_size=1000)
@@ -35,6 +35,7 @@ app.add_middleware(GZipMiddleware, minimum_size=1000)
 app.include_router(auth.router, prefix="/api")
 app.include_router(kebun.router, prefix="/api")
 app.include_router(sync.router, prefix="/api")
+app.include_router(kegiatan.router, prefix="/api")
 
 
 @app.get("/", tags=["Root"])

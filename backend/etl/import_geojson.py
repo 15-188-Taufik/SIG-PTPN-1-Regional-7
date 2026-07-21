@@ -254,13 +254,13 @@ def main():
         conn = psycopg2.connect(DATABASE_URL)
         print("Koneksi berhasil!")
         
-        # Bersihkan data lama untuk menghindari duplikasi akibat perubahan nama unit (conflict key)
-        print("Membersihkan data lama di tabel blok_kebun...")
+        # Bersihkan data lama & reset auto-increment ID back to 1
+        print("Membersihkan data lama dan me-reset ID di tabel blok_kebun...")
         cur = conn.cursor()
-        cur.execute("DELETE FROM blok_kebun;")
+        cur.execute("TRUNCATE TABLE blok_kebun RESTART IDENTITY CASCADE;")
         conn.commit()
         cur.close()
-        print("Data lama berhasil dibersihkan.")
+        print("Data lama berhasil dibersihkan dan ID di-reset ke 1.")
     except Exception as e:
         print(f"[ERROR] Gagal koneksi atau pembersihan database: {e}")
         sys.exit(1)
