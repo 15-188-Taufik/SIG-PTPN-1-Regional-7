@@ -1,7 +1,7 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
-import type { Map } from 'leaflet';
+import { useEffect, useRef, useState, useMemo } from 'react';
+import type { Map as LeafletMap } from 'leaflet';
 import type { GeoJSONFeature, FeatureCollection } from '@/types/kebun';
 import * as turf from '@turf/turf';
 import CarbonLoader from './CarbonLoader';
@@ -15,6 +15,109 @@ const KEBUN_COLORS: Record<string, string> = {
   'Unit Tulungbuyut': '#E69F00',
   'Unit Kedaton': '#56B4E9',
 };
+
+const FOUR_COLOR_PALETTE = [
+  '#0F62FE', // Biru
+  '#24A148', // Hijau
+  '#EE5396', // Magenta / Pink
+  '#F5A623', // Amber / Yellow
+];
+
+function computeFourColorAssignment(features: GeoJSONFeature[]): Map<string | number, string> {
+  const n = features.length;
+  const assigned = new Map<number, number>();
+
+  // Precompute spatial meta (bbox & centroid) for efficient spatial adjacency checks
+  const meta = features.map((f) => {
+    try {
+      const bbox = turf.bbox(f as any);
+      const centroid = turf.centroid(f as any);
+      return { bbox, centroid };
+    } catch {
+      return { bbox: [0, 0, 0, 0], centroid: turf.point([0, 0]) };
+    }
+  });
+
+  // Build spatial adjacency graph
+  const adj: number[][] = Array.from({ length: n }, () => []);
+  const tol = 0.005; // Spatial tolerance for bounding box overlap
+
+  for (let i = 0; i < n; i++) {
+    for (let j = i + 1; j < n; j++) {
+      const b1 = meta[i].bbox;
+      const b2 = meta[j].bbox;
+      // Fast Bounding Box Overlap Check
+      if (
+        !(
+          b1[2] + tol < b2[0] ||
+          b2[2] + tol < b1[0] ||
+          b1[3] + tol < b2[1] ||
+          b2[3] + tol < b1[1]
+        )
+      ) {
+        try {
+          const dist = turf.distance(meta[i].centroid, meta[j].centroid, { units: 'kilometers' });
+          if (dist < 20.0) {
+            adj[i].push(j);
+            adj[j].push(i);
+          }
+        } catch {}
+      }
+    }
+  }
+
+  // DSATUR / Degree-Descending Greedy Graph 4-Coloring
+  const order = Array.from({ length: n }, (_, idx) => idx);
+  order.sort((a, b) => adj[b].length - adj[a].length);
+
+  for (const u of order) {
+    const usedColors = new Set<number>();
+    for (const v of adj[u]) {
+      if (assigned.has(v)) {
+        usedColors.add(assigned.get(v)!);
+      }
+    }
+    let color = 0;
+    while (usedColors.has(color) && color < 4) {
+      color++;
+    }
+    if (color >= 4 || adj[u].length === 0) color = u % 4; // Round-robin cycle for isolated units
+    assigned.set(u, color);
+  }
+
+  const resultMap = new Map<string | number, string>();
+  features.forEach((feat, idx) => {
+    const key = feat.properties.id ?? feat.properties.kode_blok ?? feat.properties.afdeling ?? idx;
+    const colorIdx = assigned.get(idx) ?? (idx % 4);
+    resultMap.set(key, FOUR_COLOR_PALETTE[colorIdx]);
+  });
+
+  return resultMap;
+}
+
+function dissolveFeaturesCleanly(features: any[]): any {
+  if (!features || features.length === 0) return null;
+  if (features.length === 1) return JSON.parse(JSON.stringify(features[0]));
+
+  try {
+    const fc = turf.featureCollection(features);
+    // Micro-buffer +0.0002 km (~2 meters) bridges internal block seams/micro-gaps along shared borders
+    const buffered = turf.buffer(fc as any, 0.0002, { units: 'kilometers' });
+    let merged = turf.union(buffered as any);
+    if (merged) {
+      // Shrink back by -0.0002 km to restore exact original geometry
+      const unbuffered = turf.buffer(merged as any, -0.0002, { units: 'kilometers' });
+      if (unbuffered) merged = unbuffered;
+    }
+    return merged || turf.union(fc as any);
+  } catch (err) {
+    try {
+      return turf.union(turf.featureCollection(features) as any);
+    } catch {
+      return JSON.parse(JSON.stringify(features[0]));
+    }
+  }
+}
 
 export function getKebunDisplayName(name: string | null): string {
   if (!name) return '-';
@@ -36,6 +139,11 @@ function getKebunColor(kebun: string | null): string {
 
 function getColorName(hex: string): string {
   const norm = hex.toUpperCase();
+  if (norm === '#0F62FE') return 'Empat Warna 1 (Biru)';
+  if (norm === '#24A148') return 'Empat Warna 2 (Hijau)';
+  if (norm === '#EE5396') return 'Empat Warna 3 (Magenta)';
+  if (norm === '#F5A623') return 'Empat Warna 4 (Amber)';
+
   if (norm === '#0072B2') return 'Biru (Okabe-Ito Blue)';
   if (norm === '#009E73') return 'Hijau Kebiruan (Okabe-Ito Green)';
   if (norm === '#CC79A7') return 'Merah Muda Keunguan (Okabe-Ito Reddish Purple)';
@@ -60,12 +168,24 @@ function getColorName(hex: string): string {
 function getFeatureColor(
   feature: GeoJSONFeature,
   viewMode: ViewMode,
-  showEmptyData: boolean
+  showEmptyData: boolean,
+  detailLevel: 'block' | 'afdeling' | 'kebun',
+  fourColorBlockMap?: Map<string | number, string>,
+  fourColorAfdMap?: Map<string | number, string>
 ): string {
   const p = feature.properties;
 
   if (viewMode === 'default') {
-    return getKebunColor(p.kebun);
+    if (detailLevel === 'kebun') {
+      return getKebunColor(p.kebun);
+    }
+    if (detailLevel === 'afdeling') {
+      const key = `${p.kebun || 'Unknown'}|||${p.afdeling || 'Unknown'}`;
+      return (fourColorAfdMap && fourColorAfdMap.get(key)) || FOUR_COLOR_PALETTE[0];
+    }
+    // Block level uses 4-Coloring by default
+    const key = p.id ?? p.kode_blok ?? 0;
+    return (fourColorBlockMap && fourColorBlockMap.get(key)) || FOUR_COLOR_PALETTE[0];
   }
 
   if (viewMode === 'productivity') {
@@ -125,7 +245,8 @@ interface MapViewProps {
   viewMode: ViewMode;
   showEmptyData: boolean;
   detailLevel: 'block' | 'afdeling' | 'kebun';
-  mapInstanceRef?: React.MutableRefObject<Map | null>;
+  selectedFeature?: GeoJSONFeature | null;
+  mapInstanceRef?: React.MutableRefObject<LeafletMap | null>;
 }
 
 export default function MapView({
@@ -135,10 +256,43 @@ export default function MapView({
   viewMode,
   showEmptyData,
   detailLevel,
+  selectedFeature,
   mapInstanceRef,
 }: MapViewProps) {
   const [isProcessing, setIsProcessing] = useState(true);
   const isFirstRenderRef = useRef(true);
+
+  // Compute spatial adjacency graph 4-coloring for Blocks
+  const fourColorBlockMap = useMemo(() => {
+    if (!geojsonData || !geojsonData.features) return new Map<string | number, string>();
+    return computeFourColorAssignment(geojsonData.features);
+  }, [geojsonData]);
+
+  // Compute spatial adjacency graph 4-coloring for Afdelings
+  const fourColorAfdMap = useMemo(() => {
+    if (!geojsonData || !geojsonData.features) return new Map<string | number, string>();
+
+    const afdGroups: Record<string, any[]> = {};
+    geojsonData.features.forEach((feat) => {
+      const p = feat.properties;
+      const key = `${p.kebun || 'Unknown'}|||${p.afdeling || 'Unknown'}`;
+      if (!afdGroups[key]) afdGroups[key] = [];
+      afdGroups[key].push(feat);
+    });
+
+    const afdFeatures: any[] = [];
+    Object.entries(afdGroups).forEach(([key, feats]) => {
+      try {
+        const dissolved = dissolveFeaturesCleanly(feats);
+        if (dissolved) {
+          dissolved.properties = { ...feats[0].properties, id: key };
+          afdFeatures.push(dissolved);
+        }
+      } catch {}
+    });
+
+    return computeFourColorAssignment(afdFeatures);
+  }, [geojsonData]);
 
   // Toggle loading class on body when rendering map vector layers
   useEffect(() => {
@@ -157,8 +311,68 @@ export default function MapView({
   const [showTypePanel, setShowTypePanel] = useState(false);
 
   const mapContainerRef = useRef<HTMLDivElement>(null);
-  const mapRef = useRef<Map | null>(null);
+  const mapRef = useRef<LeafletMap | null>(null);
   const geojsonLayerRef = useRef<any>(null);
+  const highlightLayerRef = useRef<any>(null);
+
+  // Zoom & Highlight selectedFeature when searched from SidePanel or clicked
+  useEffect(() => {
+    if (!mapRef.current) return;
+    const currentMap = mapRef.current;
+    const L = require('leaflet');
+
+    // Remove previous highlight
+    if (highlightLayerRef.current) {
+      try {
+        currentMap.removeLayer(highlightLayerRef.current);
+      } catch {}
+      highlightLayerRef.current = null;
+    }
+
+    if (!currentMap.getPane('highlightPane')) {
+      const pane = currentMap.createPane('highlightPane');
+      pane.style.zIndex = '650';
+      pane.style.pointerEvents = 'none';
+    }
+
+    if (selectedFeature && selectedFeature.geometry) {
+      console.log('✨ [MapView] Zooming & Highlighting selectedFeature:', selectedFeature.properties);
+      try {
+        const highlightLayer = L.geoJSON(selectedFeature, {
+          pane: 'highlightPane',
+          style: {
+            color: '#FFD700', // Bright Gold outline
+            weight: 6,
+            fillColor: '#00E5FF', // Neon Cyan fill
+            fillOpacity: 0.5,
+            opacity: 1,
+            dashArray: '6, 6',
+          },
+        }).addTo(currentMap);
+
+        highlightLayerRef.current = highlightLayer;
+
+        const bounds = highlightLayer.getBounds();
+        if (bounds && bounds.isValid()) {
+          // 150ms timeout ensures Leaflet layer initialization completes before zoom animation starts
+          setTimeout(() => {
+            try {
+              currentMap.flyToBounds(bounds, {
+                padding: [100, 100],
+                maxZoom: 16,
+                animate: true,
+                duration: 1.2,
+              });
+            } catch (zoomErr) {
+              currentMap.fitBounds(bounds, { padding: [100, 100], maxZoom: 16 });
+            }
+          }, 150);
+        }
+      } catch (err) {
+        console.error('Error zooming & highlighting feature:', err);
+      }
+    }
+  }, [selectedFeature]);
 
   const baseLayerRef = useRef<any>(null);
   const roadsLayerRef = useRef<any>(null);
@@ -315,13 +529,7 @@ export default function MapView({
         const kebunOutlineFeatures: any[] = [];
         Object.entries(kebunGroups).forEach(([kebunName, feats]) => {
           try {
-            let dissolved: any = null;
-            if (feats.length === 1) {
-              dissolved = JSON.parse(JSON.stringify(feats[0]));
-            } else if (feats.length > 1) {
-              const fc = turf.featureCollection(feats);
-              dissolved = turf.union(fc as any);
-            }
+            const dissolved = dissolveFeaturesCleanly(feats);
             if (dissolved) {
               dissolved.properties = { kebun: kebunName };
               kebunOutlineFeatures.push(dissolved);
@@ -341,7 +549,7 @@ export default function MapView({
             { type: 'FeatureCollection', features: filteredFeatures },
             {
               style: (feature: GeoJSONFeature) => {
-                const color = getFeatureColor(feature, viewMode, showEmptyData);
+                const color = getFeatureColor(feature, viewMode, showEmptyData, detailLevel, fourColorBlockMap, fourColorAfdMap);
                 return {
                   fillColor: color,
                   fillOpacity: 0.95,
@@ -428,13 +636,7 @@ export default function MapView({
           const afdFeatures: any[] = [];
           Object.entries(afdGroups).forEach(([key, group]) => {
             try {
-              let dissolved: any = null;
-              if (group.feats.length === 1) {
-                dissolved = JSON.parse(JSON.stringify(group.feats[0]));
-              } else if (group.feats.length > 1) {
-                const fc = turf.featureCollection(group.feats);
-                dissolved = turf.union(fc as any);
-              }
+              const dissolved = dissolveFeaturesCleanly(group.feats);
 
               if (dissolved) {
                 // Sum aggregates
@@ -486,13 +688,13 @@ export default function MapView({
             { type: 'FeatureCollection', features: afdFeatures },
             {
               style: (feature: GeoJSONFeature) => {
-                const color = getFeatureColor(feature, viewMode, showEmptyData);
+                const color = getFeatureColor(feature, viewMode, showEmptyData, detailLevel, fourColorBlockMap, fourColorAfdMap);
                 return {
                   fillColor: color,
                   fillOpacity: 0.95,
                   stroke: true,
-                  color: '#ffffff', // White stroke to separate adjacent afdelings
-                  weight: 0.8,
+                  color: color, // Match fill color so internal block seams inside Afdeling disappear completely!
+                  weight: 0.5,
                   opacity: 1,
                 };
               },
@@ -541,20 +743,34 @@ export default function MapView({
             }
           );
 
-          outlinesLayerInstance = L.geoJSON(
-            { type: 'FeatureCollection', features: kebunOutlineFeatures },
+          // Dedicated Afdeling Outline Boundary Lines
+          const afdOutlineLayer = L.geoJSON(
+            { type: 'FeatureCollection', features: afdFeatures },
             {
               style: () => ({
                 fill: false,
-                color: '#262626',
-                weight: 1.4,
+                color: '#161616', // Charcoal Afdeling Boundary
+                weight: 1.8,
                 opacity: 1,
               }),
               interactive: false,
             }
           );
 
-          layerGroup = L.layerGroup([afdLayer, outlinesLayerInstance]).addTo(currentMap);
+          outlinesLayerInstance = L.geoJSON(
+            { type: 'FeatureCollection', features: kebunOutlineFeatures },
+            {
+              style: () => ({
+                fill: false,
+                color: '#000000', // Bold Kebun Boundary
+                weight: 2.6,
+                opacity: 1,
+              }),
+              interactive: false,
+            }
+          );
+
+          layerGroup = L.layerGroup([afdLayer, afdOutlineLayer, outlinesLayerInstance]).addTo(currentMap);
         }
         else {
           // effectiveDetailLevel === 'kebun'
@@ -578,13 +794,7 @@ export default function MapView({
           const kebunFeatures: any[] = [];
           Object.entries(kebunGroups).forEach(([kebunName, feats]) => {
             try {
-              let dissolved: any = null;
-              if (feats.length === 1) {
-                dissolved = JSON.parse(JSON.stringify(feats[0]));
-              } else if (feats.length > 1) {
-                const fc = turf.featureCollection(feats);
-                dissolved = turf.union(fc as any);
-              }
+              const dissolved = dissolveFeaturesCleanly(feats);
 
               if (dissolved) {
                 const agg = kebunAggregates[kebunName] || { l_gis: 1, l_rkap: 0, populasi: 0, protas_21: 0, protas_22: 0, protas_23: 0, protas_24: 0 };
@@ -626,7 +836,7 @@ export default function MapView({
             { type: 'FeatureCollection', features: kebunFeatures },
             {
               style: (feature: GeoJSONFeature) => {
-                const color = getFeatureColor(feature, viewMode, showEmptyData);
+                const color = getFeatureColor(feature, viewMode, showEmptyData, detailLevel, fourColorBlockMap, fourColorAfdMap);
                 return {
                   fillColor: color,
                   fillOpacity: 0.95,
@@ -883,14 +1093,15 @@ export default function MapView({
         )}
       </div>
 
-      {/* Floating Legend (IBM Carbon style: flat white card with border) */}
+      {/* Bottom Floating Map Legend */}
       <div
         style={{
           position: 'absolute',
           bottom: '24px',
-          right: '16px',
+          right: '24px',
           zIndex: 1000,
-          background: '#ffffff',
+          background: 'rgba(255, 255, 255, 0.95)',
+          backdropFilter: 'blur(4px)',
           border: '1px solid var(--cds-border)',
           borderRadius: '0px',
           padding: '12px 16px',
@@ -910,14 +1121,14 @@ export default function MapView({
             color: 'var(--cds-primary)',
           }}
         >
-          {viewMode === 'default' && 'Legenda Wilayah Kebun'}
+          {viewMode === 'default' && (detailLevel === 'kebun' ? 'Legenda Wilayah Kebun' : 'Legenda Wilayah (Teorema Empat Warna)')}
           {viewMode === 'productivity' && 'Legenda Produktivitas (kg/Ha)'}
           {viewMode === 'age' && 'Legenda Umur Tanaman (Tahun)'}
           {viewMode === 'density' && 'Legenda Kerapatan (Pohon/Ha)'}
         </div>
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-          {viewMode === 'default' &&
+          {viewMode === 'default' && detailLevel === 'kebun' &&
             Object.entries(KEBUN_COLORS).map(([name, color]) => (
               <div key={name} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <div
@@ -927,6 +1138,21 @@ export default function MapView({
                 <span style={{ color: 'var(--cds-text-secondary)' }}>Kebun {getKebunDisplayName(name)}</span>
               </div>
             ))}
+
+          {viewMode === 'default' && detailLevel !== 'kebun' && [
+            { label: 'Warna 1 (Biru Carbon)', color: '#0F62FE' },
+            { label: 'Warna 2 (Hijau Carbon)', color: '#24A148' },
+            { label: 'Warna 3 (Magenta Carbon)', color: '#EE5396' },
+            { label: 'Warna 4 (Amber Carbon)', color: '#F5A623' },
+          ].map((item, idx) => (
+            <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <div
+                style={{ width: '10px', height: '10px', borderRadius: '0px', background: item.color, cursor: 'help' }}
+                title={`Warna: ${getColorName(item.color)}`}
+              />
+              <span style={{ color: 'var(--cds-text-secondary)' }}>{item.label}</span>
+            </div>
+          ))}
 
           {viewMode === 'productivity' && [
             { label: '> 500 kg/Ha (Sangat Tinggi)', color: '#22C55E' },

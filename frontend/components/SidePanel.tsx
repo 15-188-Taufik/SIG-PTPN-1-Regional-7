@@ -483,9 +483,12 @@ export default function SidePanel({
                             return (
                               <div
                                 key={idx}
-                                onClick={() => {
+                                onMouseDown={(e) => {
+                                  e.preventDefault();
+                                  console.log('🔍 [SidePanel] Search result selected:', p.kode_blok, p.kebun, p.afdeling);
                                   onSelectFeature(feat);
                                   setSearchQuery(`${blockCode} (${afdName})`);
+                                  setIsSearchFocused(false);
                                 }}
                                 style={{
                                   padding: '8px 12px',
@@ -606,7 +609,7 @@ export default function SidePanel({
                       borderRadius: '0px',
                     }}
                   >
-                    <option value="default">Tampilan Wilayah Kebun</option>
+                    <option value="default">Tampilan Wilayah Kebun </option>
                     <option value="productivity">Produktivitas Lahan (kg/Ha)</option>
                     <option value="age">Umur Lahan Tanaman</option>
                     <option value="density">Kerapatan Pohon (Pohon/Ha)</option>

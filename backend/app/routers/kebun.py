@@ -72,54 +72,32 @@ class GeoJSONFallback:
                         raw_afdeling = "Afdeling I"
 
                     # Normalize afdeling to match dim_afdeling
-                    orig_afdeling = str(raw_afdeling).strip()
-                    
-                    def parse_afd_idx(s_val: str) -> int:
-                        s = s_val.lower()
-                        if "vi" in s: return 6
-                        if "iv" in s: return 4
-                        if "v" in s: return 5
-                        if "iii" in s: return 3
-                        if "ii" in s: return 2
-                        if "i" in s: return 1
-                        if "a" in s: return 1
-                        if "b" in s: return 2
-                        if "c" in s: return 3
-                        if "d" in s: return 4
-                        for char in s:
-                            if char.isdigit():
-                                v = int(char)
-                                if 1 <= v <= 9: return v
-                        return 1
+                    ROMAN_NUMS = {1: "I", 2: "II", 3: "III", 4: "IV", 5: "V", 6: "VI", 7: "VII", 8: "VIII"}
 
-                    idx = parse_afd_idx(orig_afdeling)
+                    def parse_clean_afdeling(raw_val: str, unit_name: str) -> str:
+                        s = str(raw_val).strip()
+                        lower = s.lower()
+                        if not s or lower in ["none", "null", "kso", "implasmen", "pabrik", "trikora", "keda", "bapu", "tubu", "bergen", "tulungbuyut", "kedaton"]:
+                            return "Afdeling I"
 
-                    if "bergen" in sf_lower:
-                        if idx == 1: afdeling_val = "Afdeling I"
-                        elif idx == 2: afdeling_val = "Afdeling II"
-                        else: afdeling_val = "Afdeling III"
-                    elif "kedaton" in sf_lower:
-                        if idx == 1: afdeling_val = "Afdeling A"
-                        elif idx == 2: afdeling_val = "Afdeling B"
-                        elif idx == 3: afdeling_val = "Afdeling C"
-                        else: afdeling_val = "Afdeling D"
-                    elif "tubu" in sf_lower:
-                        if idx == 1: afdeling_val = "Afdeling A"
-                        elif idx == 2: afdeling_val = "Afdeling B"
-                        else: afdeling_val = "Afdeling C"
-                    elif "wabe" in sf_lower:
-                        if idx == 1: afdeling_val = "Afdeling I"
-                        elif idx == 2: afdeling_val = "Afdeling II"
-                        elif idx == 3: afdeling_val = "Afdeling III"
-                        else: afdeling_val = "Afdeling IV"
-                    elif "wali" in sf_lower:
-                        if idx == 1: afdeling_val = "Afdeling I"
-                        elif idx == 2: afdeling_val = "Afdeling II"
-                        elif idx == 3: afdeling_val = "Afdeling III"
-                        elif idx == 4: afdeling_val = "Afdeling IV"
-                        else: afdeling_val = "Afdeling V"
-                    else:
-                        afdeling_val = orig_afdeling
+                        # Check roman numerals first
+                        if "vi" in lower: return "Afdeling VI"
+                        if "iv" in lower: return "Afdeling IV"
+                        if "v" in lower: return "Afdeling V"
+                        if "iii" in lower: return "Afdeling III"
+                        if "ii" in lower: return "Afdeling II"
+                        if "i" in lower: return "Afdeling I"
+
+                        # Check digits
+                        digits = [c for c in s if c.isdigit()]
+                        if digits:
+                            num = int("".join(digits))
+                            if 1 <= num <= 10:
+                                return f"Afdeling {ROMAN_NUMS.get(num, str(num))}"
+
+                        return s
+
+                    afdeling_val = parse_clean_afdeling(raw_afdeling, sf_lower)
 
                     norm_props = {
                         "kebun": kebun_name,

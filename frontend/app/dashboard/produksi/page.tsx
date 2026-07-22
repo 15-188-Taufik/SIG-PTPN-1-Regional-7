@@ -154,9 +154,6 @@ export default function ProduksiPage() {
               Pencatatan dan analisis target vs aktual hasil panen produksi harian, HK pemanen, curah hujan, dan rendemen.
             </p>
           </div>
-          <button onClick={handleOpenCreate} style={styles.btnPrimary}>
-            ＋ Tambah Catatan Produksi
-          </button>
         </div>
 
         {/* 4 Summary KPI Cards */}
@@ -303,19 +300,18 @@ export default function ProduksiPage() {
                   <th style={styles.th}>Pemanen (HK)</th>
                   <th style={styles.th}>Hujan (mm)</th>
                   <th style={styles.th}>Rendemen (%)</th>
-                  <th style={{ ...styles.th, textAlign: 'center' }}>Aksi</th>
                 </tr>
               </thead>
               <tbody>
                 {loading ? (
                   <tr>
-                    <td colSpan={11} style={{ textAlign: 'center', padding: '32px', color: '#6f6f6f' }}>
+                    <td colSpan={10} style={{ textAlign: 'center', padding: '32px', color: '#6f6f6f' }}>
                       Memuat data produksi harian...
                     </td>
                   </tr>
                 ) : paginatedItems.length === 0 ? (
                   <tr>
-                    <td colSpan={11} style={{ textAlign: 'center', padding: '32px', color: '#6f6f6f', fontStyle: 'italic' }}>
+                    <td colSpan={10} style={{ textAlign: 'center', padding: '32px', color: '#6f6f6f', fontStyle: 'italic' }}>
                       Belum ada catatan produksi harian yang sesuai filter.
                     </td>
                   </tr>
@@ -339,22 +335,6 @@ export default function ProduksiPage() {
                         <td style={styles.td}>{row.jumlah_pemanen_hk ? `${row.jumlah_pemanen_hk} HK` : '-'}</td>
                         <td style={styles.td}>{row.curah_hujan_mm ? `${row.curah_hujan_mm} mm` : '0'}</td>
                         <td style={styles.td}>{row.rendemen_persen ? `${row.rendemen_persen}%` : '-'}</td>
-                        <td style={{ ...styles.td, textAlign: 'center' }}>
-                          <div style={{ display: 'flex', gap: '6px', justifyContent: 'center' }}>
-                            <button onClick={() => handleOpenEdit(row)} style={styles.actionEditBtn} title="Edit data">
-                              <svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor">
-                                <path d="M11.013 1.427a1.75 1.75 0 0 1 2.474 0l1.086 1.086a1.75 1.75 0 0 1 0 2.474L5.275 14.285a.75.75 0 0 1-.365.204l-3.25 1a.75.75 0 0 1-.937-.937l1-3.25a.75.75 0 0 1 .204-.365l9.386-9.51zm1.414 1.06a.25.25 0 0 0-.354 0L11 3.548l1.452 1.452 1.06-1.06a.25.25 0 0 0 0-.354l-1.085-1.086z" />
-                              </svg>
-                              Edit
-                            </button>
-                            <button onClick={() => handleDelete(row.id_fakta)} style={styles.actionDeleteBtn} title="Hapus data">
-                              <svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor">
-                                <path d="M6.5 1.75a.75.75 0 0 1 .75-.75h1.5a.75.75 0 0 1 .75.75V3h4a.75.75 0 0 1 0 1.5h-.441l-1.042 9.38a2.75 2.75 0 0 1-2.732 2.445H5.715a2.75 2.75 0 0 1-2.732-2.445L1.94 4.5H1.5a.75.75 0 0 1 0-1.5h4V1.75zm1.5.75h-1V3h1V2.5z" />
-                              </svg>
-                              Hapus
-                            </button>
-                          </div>
-                        </td>
                       </tr>
                     );
                   })

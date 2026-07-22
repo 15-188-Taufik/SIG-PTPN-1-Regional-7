@@ -130,26 +130,23 @@ export default function DashboardPage() {
   }, []);
 
   const handleSelectFeatureFromAlert = useCallback((feature: GeoJSONFeature) => {
+    console.log('🚀 [DashboardPage] handleSelectFeatureFromAlert called:', feature.properties);
     setSelectedKebunAnalysis(null);
-    setSelectedFeature(feature);
+    setDetailLevel('block');
 
-    if (mapInstanceRef.current && feature.geometry) {
-      const L = require('leaflet');
-      try {
-        const tempLayer = L.geoJSON(feature);
-        const bounds = tempLayer.getBounds();
-        if (bounds.isValid()) {
-          mapInstanceRef.current.flyToBounds(bounds, { 
-            padding: [80, 80], 
-            maxZoom: 16,
-            animate: true,
-            duration: 1.2
-          });
+    const kebun = feature.properties.kebun;
+    if (kebun) {
+      setActiveKebun((prev) => {
+        if (prev.length > 0 && !prev.includes(kebun)) {
+          console.log('📌 [DashboardPage] Automatically activating kebun filter:', kebun);
+          return [...prev, kebun];
         }
-      } catch (err) {
-        console.error('Error flying to bounds:', err);
-      }
+        return prev;
+      });
     }
+
+    // Pass fresh object reference so useEffect([selectedFeature]) always triggers
+    setSelectedFeature({ ...feature, _ts: Date.now() } as any);
   }, []);
 
   function handleLogout() {
@@ -255,6 +252,7 @@ export default function DashboardPage() {
               viewMode={viewMode}
               showEmptyData={showEmptyData}
               detailLevel={detailLevel}
+              selectedFeature={selectedFeature}
               mapInstanceRef={mapInstanceRef}
             />
           ) : (

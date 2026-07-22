@@ -75,29 +75,11 @@ export async function fetchKebun(
     if (cachedGeoJSON) {
       return cachedGeoJSON;
     }
-    if (typeof window !== 'undefined') {
-      try {
-        const stored = sessionStorage.getItem(CACHE_GEOJSON_KEY);
-        if (stored) {
-          cachedGeoJSON = JSON.parse(stored);
-          return cachedGeoJSON!;
-        }
-      } catch (e) {
-        console.warn('Error reading GeoJSON from sessionStorage', e);
-      }
-    }
   }
 
   const res = await api.get('/api/kebun', { params });
   if (!params) {
     cachedGeoJSON = res.data;
-    if (typeof window !== 'undefined') {
-      try {
-        sessionStorage.setItem(CACHE_GEOJSON_KEY, JSON.stringify(res.data));
-      } catch (e) {
-        console.warn('SessionStorage quota exceeded for GeoJSON cache', e);
-      }
-    }
   }
   return res.data;
 }
