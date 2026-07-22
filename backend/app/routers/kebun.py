@@ -73,29 +73,44 @@ class GeoJSONFallback:
 
                     # Normalize afdeling to match dim_afdeling
                     ROMAN_NUMS = {1: "I", 2: "II", 3: "III", 4: "IV", 5: "V", 6: "VI", 7: "VII", 8: "VIII"}
+                    ROMAN_VALUES = {"i": 1, "ii": 2, "iii": 3, "iv": 4, "v": 5, "vi": 6, "vii": 7, "viii": 8}
 
                     def parse_clean_afdeling(raw_val: str, unit_name: str) -> str:
                         s = str(raw_val).strip()
-                        lower = s.lower()
-                        if not s or lower in ["none", "null", "kso", "implasmen", "pabrik", "trikora", "keda", "bapu", "tubu", "bergen", "tulungbuyut", "kedaton"]:
+                        if not s or s.lower() in ["none", "null", "kso", "implasmen", "pabrik", "trikora", "keda", "bapu", "tubu", "bergen", "tulungbuyut", "kedaton"]:
                             return "Afdeling I"
 
-                        # Check roman numerals first
-                        if "vi" in lower: return "Afdeling VI"
-                        if "iv" in lower: return "Afdeling IV"
-                        if "v" in lower: return "Afdeling V"
-                        if "iii" in lower: return "Afdeling III"
-                        if "ii" in lower: return "Afdeling II"
-                        if "i" in lower: return "Afdeling I"
+                        # Strip prefix "afdeling", "afd.", "afd"
+                        lower_orig = s.lower()
+                        clean_val = s
+                        if lower_orig.startswith("afdeling "):
+                            clean_val = s[9:].strip()
+                        elif lower_orig.startswith("afd. "):
+                            clean_val = s[5:].strip()
+                        elif lower_orig.startswith("afd "):
+                            clean_val = s[4:].strip()
+                        elif lower_orig.startswith("afd"):
+                            clean_val = s[3:].strip()
 
-                        # Check digits
-                        digits = [c for c in s if c.isdigit()]
-                        if digits:
-                            num = int("".join(digits))
+                        lower_clean = clean_val.lower()
+
+                        # 1. Match Roman numerals
+                        if lower_clean in ROMAN_VALUES:
+                            num = ROMAN_VALUES[lower_clean]
+                            return f"Afdeling {ROMAN_NUMS[num]}"
+
+                        # 2. Match numeric digits
+                        if lower_clean.isdigit():
+                            num = int(lower_clean)
                             if 1 <= num <= 10:
                                 return f"Afdeling {ROMAN_NUMS.get(num, str(num))}"
 
-                        return s
+                        # 3. Match single letters (A, B, C, D, E, F)
+                        if len(lower_clean) == 1 and "a" <= lower_clean <= "f":
+                            return f"Afdeling {clean_val.upper()}"
+
+                        # 4. Standard custom name (e.g. Blambangan Umpu)
+                        return f"Afdeling {clean_val}"
 
                     afdeling_val = parse_clean_afdeling(raw_afdeling, sf_lower)
 

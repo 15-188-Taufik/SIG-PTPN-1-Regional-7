@@ -116,52 +116,47 @@ def process_feature(feature: dict, source_file: str) -> tuple | None:
             orig_afdeling = str(val or "").strip()
             sf_lower = source_file.lower()
             
-            def parse_afd_idx(s_val: str) -> int:
-                s = s_val.lower()
-                if "vi" in s: return 6
-                if "iv" in s: return 4
-                if "v" in s: return 5
-                if "iii" in s: return 3
-                if "ii" in s: return 2
-                if "i" in s: return 1
-                if "a" in s: return 1
-                if "b" in s: return 2
-                if "c" in s: return 3
-                if "d" in s: return 4
-                for char in s:
-                    if char.isdigit():
-                        v = int(char)
-                        if 1 <= v <= 9: return v
-                return 1
+            ROMAN_NUMS = {1: "I", 2: "II", 3: "III", 4: "IV", 5: "V", 6: "VI", 7: "VII", 8: "VIII"}
+            ROMAN_VALUES = {"i": 1, "ii": 2, "iii": 3, "iv": 4, "v": 5, "vi": 6, "vii": 7, "viii": 8}
 
-            idx = parse_afd_idx(orig_afdeling)
+            def parse_clean_afdeling(raw_val: str, unit_name: str) -> str:
+                s = str(raw_val).strip()
+                if not s or s.lower() in ["none", "null", "kso", "implasmen", "pabrik", "trikora", "keda", "bapu", "tubu", "bergen", "tulungbuyut", "kedaton"]:
+                    return "Afdeling I"
 
-            if "bergen" in sf_lower:
-                if idx == 1: val = "Afdeling I"
-                elif idx == 2: val = "Afdeling II"
-                else: val = "Afdeling III"
-            elif "kedaton" in sf_lower:
-                if idx == 1: val = "Afdeling A"
-                elif idx == 2: val = "Afdeling B"
-                elif idx == 3: val = "Afdeling C"
-                else: val = "Afdeling D"
-            elif "tubu" in sf_lower:
-                if idx == 1: val = "Afdeling A"
-                elif idx == 2: val = "Afdeling B"
-                else: val = "Afdeling C"
-            elif "wabe" in sf_lower:
-                if idx == 1: val = "Afdeling I"
-                elif idx == 2: val = "Afdeling II"
-                elif idx == 3: val = "Afdeling III"
-                else: val = "Afdeling IV"
-            elif "wali" in sf_lower:
-                if idx == 1: val = "Afdeling I"
-                elif idx == 2: val = "Afdeling II"
-                elif idx == 3: val = "Afdeling III"
-                elif idx == 4: val = "Afdeling IV"
-                else: val = "Afdeling V"
-            else:
-                val = orig_afdeling
+                # Strip prefix "afdeling", "afd.", "afd"
+                lower_orig = s.lower()
+                clean_val = s
+                if lower_orig.startswith("afdeling "):
+                    clean_val = s[9:].strip()
+                elif lower_orig.startswith("afd. "):
+                    clean_val = s[5:].strip()
+                elif lower_orig.startswith("afd "):
+                    clean_val = s[4:].strip()
+                elif lower_orig.startswith("afd"):
+                    clean_val = s[3:].strip()
+
+                lower_clean = clean_val.lower()
+
+                # 1. Match Roman numerals
+                if lower_clean in ROMAN_VALUES:
+                    num = ROMAN_VALUES[lower_clean]
+                    return f"Afdeling {ROMAN_NUMS[num]}"
+
+                # 2. Match numeric digits
+                if lower_clean.isdigit():
+                    num = int(lower_clean)
+                    if 1 <= num <= 10:
+                        return f"Afdeling {ROMAN_NUMS.get(num, str(num))}"
+
+                # 3. Match single letters (A, B, C, D, E, F)
+                if len(lower_clean) == 1 and "a" <= lower_clean <= "f":
+                    return f"Afdeling {clean_val.upper()}"
+
+                # 4. Standard custom name (e.g. Blambangan Umpu)
+                return f"Afdeling {clean_val}"
+
+            val = parse_clean_afdeling(orig_afdeling, sf_lower)
 
         row.append(val)
 
