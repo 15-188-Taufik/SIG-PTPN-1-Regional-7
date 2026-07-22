@@ -23,6 +23,9 @@ export interface BlokProperties {
   alas_hak: string | null;
   kat_als_hk: string | null;
   status_kpm: string | null;
+  nomor_peta: string | null;
+  keterangan: string | null;
+  [key: string]: any;
 }
 
 export interface GeoJSONFeature {
