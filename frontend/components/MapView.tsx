@@ -620,15 +620,16 @@ export default function MapView({
           layerGroup = L.layerGroup([blocksLayer, outlinesLayerInstance]).addTo(currentMap);
         } 
         else if (effectiveDetailLevel === 'afdeling') {
-          // Group features by kebun AND afdeling
-          const afdGroups: Record<string, { feats: any[]; kebun: string; afdeling: string }> = {};
+          // Group features by kebun AND afdeling AND status
+          const afdGroups: Record<string, { feats: any[]; kebun: string; afdeling: string; status: string }> = {};
           filteredFeatures.forEach((feat) => {
             const p = feat.properties;
             const kebunVal = p.kebun || 'Unknown';
             const afdVal = p.afdeling || 'Unknown';
-            const key = `${kebunVal}|||${afdVal}`;
+            const statusVal = p.status || 'Unknown';
+            const key = `${kebunVal}|||${afdVal}|||${statusVal}`;
             if (!afdGroups[key]) {
-              afdGroups[key] = { feats: [], kebun: kebunVal, afdeling: afdVal };
+              afdGroups[key] = { feats: [], kebun: kebunVal, afdeling: afdVal, status: statusVal };
             }
             afdGroups[key].feats.push(feat);
           });
@@ -658,12 +659,12 @@ export default function MapView({
                 const avgYr = plantYears.length > 0 ? Math.round(plantYears.reduce((a, b) => a + b, 0) / plantYears.length) : null;
                 
                 const komodities = Array.from(new Set(group.feats.map((f) => f.properties.komoditi).filter(Boolean))).join(', ');
-                const statuses = Array.from(new Set(group.feats.map((f) => f.properties.status).filter(Boolean))).join(', ');
                 const varietas = Array.from(new Set(group.feats.map((f) => f.properties.varietas).filter(Boolean))).slice(0, 3).join(', ');
 
                 dissolved.properties = {
                   kebun: group.kebun,
                   afdeling: group.afdeling,
+                  status: group.status,
                   l_gis,
                   l_rkap,
                   populasi,
@@ -673,7 +674,6 @@ export default function MapView({
                   protas_24,
                   thn_tanam: avgYr ? `${avgYr}` : null,
                   komoditi: komodities,
-                  status: statuses,
                   varietas: varietas,
                   is_afdeling_level: true
                 };
@@ -711,6 +711,11 @@ export default function MapView({
                     <div style="font-weight: 600; color: #525252; margin-bottom: 4px;">
                       ${afdelingName}
                     </div>
+                    ${p.status ? `
+                    <div style="font-size: 10px; font-weight: 600; color: #393939; margin-bottom: 4px;">
+                      Status: <span style="color: var(--cds-primary); font-weight: 700;">${p.status}</span>
+                    </div>
+                    ` : ''}
                     <div style="font-size: 10px; color: #8d8d8d; border-top: 1px solid #e0e0e0; padding-top: 3px; margin-top: 3px;">
                       Total Luas: ${p.l_gis ? p.l_gis.toLocaleString('id-ID', { maximumFractionDigits: 2 }) : 0} Ha
                     </div>
