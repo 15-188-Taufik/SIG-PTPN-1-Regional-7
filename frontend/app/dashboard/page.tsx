@@ -6,7 +6,7 @@ import dynamic from 'next/dynamic';
 import { fetchKebun, fetchStats, fetchKebunList } from '@/lib/api';
 import { clearToken, isAuthenticated } from '@/lib/auth';
 import { FeatureCollection, GeoJSONFeature, StatsResponse } from '@/types/kebun';
-import StatsBar from '@/components/StatsBar';
+
 import InfoDrawer from '@/components/InfoDrawer';
 import SidePanel from '@/components/SidePanel';
 import RightFilterPanel from '@/components/RightFilterPanel';
@@ -398,9 +398,6 @@ export default function DashboardPage() {
           ) : (
             <CarbonLoader overlay description="Memuat Peta & Data SIG..." />
           )}
-
-          {/* Top-right floating Stats panel */}
-          <StatsBar stats={computedStats} loading={loading} />
 
           {/* Bottom sliding InfoDrawer */}
           <InfoDrawer
