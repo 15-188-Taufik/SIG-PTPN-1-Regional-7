@@ -26,7 +26,7 @@ var API_BASE_URL = "https://sig-ptpn-1-regional-7.onrender.com/api/sync";
 var API_KEY = "kunci-rahasia-pilihan-anda-2026";                       
 
 /**
- * Fungsi trigger utama untuk Installable Edit Trigger.
+ * Fungsi trigger utama untuk Installable Edit Trigger (Mendukung Multi-Baris / Copy-Paste Bulk).
  */
 function sigAutoSync(e) {
   var range = e.range;
@@ -37,8 +37,8 @@ function sigAutoSync(e) {
   var validSheets = ["produksi_harian", "pemeliharaan_harian", "pemupukan_harian"];
   if (validSheets.indexOf(sheetName) === -1) return;
   
-  var row = range.getRow();
-  if (row === 1) return; // Jangan proses header
+  var startRow = range.getRow();
+  var numRows = range.getNumRows();
   
   // Dapatkan seluruh header kolom
   var headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
@@ -50,70 +50,84 @@ function sigAutoSync(e) {
     sheet.getRange(1, 1).setValue("id_fakta");
     headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
     idColIdx = 0;
-    // Karena kolom bergeser, sesuaikan sel yang sedang aktif
-    range = sheet.getRange(row, range.getColumn() + 1);
   }
   
-  // Baca seluruh data pada baris yang sedang diedit
-  var rowValues = sheet.getRange(row, 1, 1, headers.length).getValues()[0];
-  var idFakta = rowValues[idColIdx];
+  var rowsToSync = [];
+  var rowIndices = []; // Menyimpan koordinat baris asli untuk penulisan ID balik
   
-  // Bentuk objek payload data
-  var rowData = {};
-  for (var j = 0; j < headers.length; j++) {
-    var headerName = headers[j].toString().trim();
-    if (headerName === "") continue;
+  // Ambil semua data pada area yang diedit sekaligus
+  var dataRange = sheet.getRange(startRow, 1, numRows, headers.length);
+  var allValues = dataRange.getValues();
+  
+  for (var i = 0; i < numRows; i++) {
+    var currentRowNum = startRow + i;
+    if (currentRowNum === 1) continue; // Skip header row
     
-    var cellVal = rowValues[j];
+    var rowValues = allValues[i];
+    var idFakta = rowValues[idColIdx];
     
-    // Format Tanggal ke string YYYY-MM-DD
-    if (cellVal instanceof Date) {
-      cellVal = Utilities.formatDate(cellVal, SpreadsheetApp.getActiveSpreadsheet().getSpreadsheetTimeZone(), "yyyy-MM-dd");
+    // Bentuk objek payload data
+    var rowData = {};
+    for (var j = 0; j < headers.length; j++) {
+      var headerName = headers[j].toString().trim();
+      if (headerName === "") continue;
+      
+      var cellVal = rowValues[j];
+      
+      // Format Tanggal ke string YYYY-MM-DD
+      if (cellVal instanceof Date) {
+        cellVal = Utilities.formatDate(cellVal, SpreadsheetApp.getActiveSpreadsheet().getSpreadsheetTimeZone(), "yyyy-MM-dd");
+      }
+      
+      if (cellVal === "") {
+        cellVal = null;
+      }
+      rowData[headerName] = cellVal;
     }
     
-    if (cellVal === "") {
-      cellVal = null;
+    // VALIDASI KOLOM WAJIB DINAMIS SESUAI SHEET (Hanya jika ini data baru / Insert)
+    var isInsert = (idFakta === "" || idFakta === null || idFakta === undefined);
+    var isValid = true;
+    
+    if (isInsert) {
+      if (!rowData["tanggal"]) {
+        isValid = false;
+      } else if (sheetName === "produksi_harian") {
+        var hasAfd = rowData["id_afdeling"] || (rowData["kebun"] && rowData["afdeling"]);
+        if (!hasAfd) isValid = false;
+      } else if (sheetName === "pemeliharaan_harian") {
+        if (!rowData["jenis_kegiatan"]) isValid = false;
+        var hasBlok = rowData["blok_id"] || rowData["kode_blok"] || rowData["no_polygon"];
+        if (!hasBlok) isValid = false;
+      } else if (sheetName === "pemupukan_harian") {
+        if (!rowData["jenis_pupuk"] || rowData["jumlah_pupuk"] === null || rowData["jumlah_pupuk"] === undefined) isValid = false;
+        var hasBlok = rowData["blok_id"] || rowData["kode_blok"] || rowData["no_polygon"];
+        if (!hasBlok) isValid = false;
+      }
     }
-    rowData[headerName] = cellVal;
+    
+    if (isValid) {
+      rowsToSync.push(rowData);
+      rowIndices.push({
+        rowNum: currentRowNum,
+        isInsert: isInsert
+      });
+    }
   }
   
-  // VALIDASI KOLOM WAJIB DINAMIS SESUAI SHEET
-  var isInsert = (idFakta === "" || idFakta === null || idFakta === undefined);
+  if (rowsToSync.length === 0) return;
   
-  if (isInsert) {
-    // 1. Tanggal wajib ada di semua tipe sheet
-    if (!rowData["tanggal"]) return;
-
-    if (sheetName === "produksi_harian") {
-      // Produksi Harian butuh afdeling
-      var hasAfd = rowData["id_afdeling"] || (rowData["kebun"] && rowData["afdeling"]);
-      if (!hasAfd) return;
-    } 
-    else if (sheetName === "pemeliharaan_harian") {
-      // Pemeliharaan Harian butuh jenis_kegiatan & pengenal blok
-      if (!rowData["jenis_kegiatan"]) return;
-      var hasBlok = rowData["blok_id"] || rowData["kode_blok"] || rowData["no_polygon"];
-      if (!hasBlok) return;
-    } 
-    else if (sheetName === "pemupukan_harian") {
-      // Pemupukan Harian butuh jenis_pupuk, jumlah_pupuk & pengenal blok
-      if (!rowData["jenis_pupuk"] || rowData["jumlah_pupuk"] === null || rowData["jumlah_pupuk"] === undefined) return;
-      var hasBlok = rowData["blok_id"] || rowData["kode_blok"] || rowData["no_polygon"];
-      if (!hasBlok) return;
-    }
-  }
-  
-  // Kirim data baris ke database
-  syncSingleRowToSIG(sheet, row, idColIdx, sheetName, rowData, isInsert);
+  // Kirim seluruh data baris sekaligus ke database (Batch Webhook)
+  syncBatchToSIG(sheet, sheetName, idColIdx, rowsToSync, rowIndices);
 }
 
 /**
- * Mengirimkan data baris ke webhook backend
+ * Mengirimkan kumpulan data baris secara batch ke webhook backend
  */
-function syncSingleRowToSIG(sheet, rowNum, idColIdx, sheetType, rowData, isInsert) {
+function syncBatchToSIG(sheet, sheetType, idColIdx, rowsToSync, rowIndices) {
   var payload = {
     "sheet_type": sheetType,
-    "rows": [rowData]
+    "rows": rowsToSync
   };
   
   var options = {
@@ -132,20 +146,51 @@ function syncSingleRowToSIG(sheet, rowNum, idColIdx, sheetType, rowData, isInser
     var responseText = response.getContentText();
     var result = JSON.parse(responseText);
     
-    if (responseCode === 200 && result.row_ids && result.row_ids.length > 0) {
-      // Tulis kembali ID fakta ke kolom A jika ini adalah baris baru
-      if (isInsert) {
-        sheet.getRange(rowNum, idColIdx + 1).setValue(result.row_ids[0]);
-        SpreadsheetApp.getActiveSpreadsheet().toast("Data baru disinkronisasi ke database. ID: " + result.row_ids[0], "Auto-Sync Sukses", 3);
-      } else {
-        SpreadsheetApp.getActiveSpreadsheet().toast("Perubahan data di-update ke database. ID: " + rowData.id_fakta, "Auto-Sync Sukses", 3);
+    if (responseCode === 200) {
+      var successCount = result.inserted_updated || 0;
+      var newIdsCount = 0;
+      
+      // Gunakan hasil baris per baris (results) dari server jika tersedia
+      if (result.results && result.results.length === rowsToSync.length) {
+        for (var k = 0; k < result.results.length; k++) {
+          var res = result.results[k];
+          var info = rowIndices[k];
+          if (res.status === "success" && info.isInsert) {
+            sheet.getRange(info.rowNum, idColIdx + 1).setValue(res.id_fakta || res.id);
+            newIdsCount++;
+          }
+        }
       }
+      // Fallback menggunakan array row_ids (bila semua baris sukses)
+      else if (result.row_ids && result.row_ids.length === rowsToSync.length) {
+        for (var k = 0; k < result.row_ids.length; k++) {
+          var info = rowIndices[k];
+          if (info.isInsert) {
+            sheet.getRange(info.rowNum, idColIdx + 1).setValue(result.row_ids[k]);
+            newIdsCount++;
+          }
+        }
+      }
+      
+      var msg = "Berhasil sinkronisasi " + successCount + " data baris ke database.";
+      if (newIdsCount > 0) {
+        msg += " " + newIdsCount + " ID fakta baru ditulis ke Sheets.";
+      }
+      
+      if (result.errors && result.errors.length > 0) {
+        msg += " Namun terdapat " + result.errors.length + " data baris yang error.";
+        Logger.log("Errors: " + JSON.stringify(result.errors));
+      }
+      
+      SpreadsheetApp.getActiveSpreadsheet().toast(msg, "Batch Sync Selesai", 5);
+      
     } else {
       var errorDetail = result.detail || responseText;
-      Logger.log("Auto-Sync Gagal: " + errorDetail);
-      SpreadsheetApp.getActiveSpreadsheet().toast("Error: " + errorDetail, "Auto-Sync Gagal", 4);
+      Logger.log("Batch Sync Gagal: " + errorDetail);
+      SpreadsheetApp.getActiveSpreadsheet().toast("Error: " + errorDetail, "Batch Sync Gagal", 5);
     }
   } catch (error) {
     Logger.log("Gagal menghubungi server SIG: " + error.toString());
+    SpreadsheetApp.getActiveSpreadsheet().toast("Koneksi gagal: " + error.toString(), "Batch Sync Gagal", 5);
   }
 }

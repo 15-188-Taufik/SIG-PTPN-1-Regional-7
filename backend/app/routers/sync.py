@@ -155,9 +155,18 @@ def sync_webhook(
     sheet_type = payload.sheet_type
     rows = payload.rows
 
+    class TrackedList(list):
+        def __init__(self, callback):
+            super().__init__()
+            self.callback = callback
+        def append(self, item):
+            super().append(item)
+            self.callback(item)
+
     success_count = 0
-    success_ids = []
-    errors = []
+    results = []
+    success_ids = TrackedList(lambda val: results.append({"status": "success", "id_fakta": val}))
+    errors = TrackedList(lambda val: results.append({"status": "error", "error": val}))
 
     # Pastikan koneksi DB tersedia
     if db is None:
@@ -414,8 +423,9 @@ def sync_webhook(
         "status": "success" if not errors else "partial_success",
         "processed": len(rows),
         "inserted_updated": success_count,
-        "row_ids": success_ids,
-        "errors": errors
+        "row_ids": list(success_ids),
+        "errors": list(errors),
+        "results": results
     }
 
 
