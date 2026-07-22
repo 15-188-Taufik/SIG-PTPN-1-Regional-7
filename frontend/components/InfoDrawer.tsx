@@ -24,6 +24,55 @@ const STATUS_LABELS: Record<string, string> = {
   TT: 'Tanaman Tua (TT)',
 };
 
+const KEY_LABEL_MAP: Record<string, string> = {
+  kebun: 'Kebun',
+  kode_blok: 'Kode Blok',
+  no_polygon: 'No. Polygon',
+  no_aset: 'No. Aset',
+  afdeling: 'Afdeling',
+  komoditi: 'Komoditi',
+  status: 'Status',
+  thn_tanam: 'Tahun Tanam',
+  varietas: 'Varietas',
+  kabupaten: 'Kabupaten',
+  kecamatan: 'Kecamatan',
+  desa: 'Desa',
+  l_gis: 'Luas GIS',
+  l_rkap: 'Luas RKAP',
+  l_hgu: 'Luas HGU',
+  populasi: 'Populasi',
+  pica: 'Status PICA',
+  alas_hak: 'Alas Hak',
+  kat_als_hk: 'Kategori Alas Hak',
+  status_kpm: 'Manajemen / KPM',
+  nomor_peta: 'Nomor Peta',
+  keterangan: 'Keterangan',
+};
+
+function formatKeyLabel(key: string): string {
+  const normKey = key.toLowerCase();
+  if (KEY_LABEL_MAP[normKey]) return KEY_LABEL_MAP[normKey];
+  return key
+    .split(/[_-]/)
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+    .join(' ');
+}
+
+function formatValue(key: string, val: any): string {
+  if (val === null || val === undefined || val === '') return '-';
+  const lowerKey = key.toLowerCase();
+  if (typeof val === 'number') {
+    if (lowerKey.includes('luas') || lowerKey.startsWith('l_')) {
+      return `${val.toLocaleString('id-ID', { maximumFractionDigits: 2 })} Ha`;
+    }
+    if (lowerKey === 'populasi') {
+      return `${val.toLocaleString('id-ID')} pohon`;
+    }
+    return val.toLocaleString('id-ID', { maximumFractionDigits: 2 });
+  }
+  return val.toString();
+}
+
 export default function InfoDrawer({ feature, kebunName, geojsonData, onClose }: InfoDrawerProps) {
   const [height, setHeight] = useState(380); // Default bottom drawer height (380px)
   const [history, setHistory] = useState<{
@@ -168,6 +217,42 @@ export default function InfoDrawer({ feature, kebunName, geojsonData, onClose }:
 
   const maxProtas = Math.max(...productionData.map((d) => d.value || 0), 1);
 
+  // Generate a list of key-value pairs to display dynamically
+  const excludeKeys = new Set(['is_afdeling_level', 'is_kebun_level', 'id', 'source_file', 'imported_at', 'protas_21', 'protas_22', 'protas_23', 'protas_24', 'geom']);
+  
+  // Sort keys: We want to show the most important keys first in a specific order
+  const priorityOrder = [
+    'kebun', 'afdeling', 'nomor_peta', 'no_polygon', 'kode_blok', 
+    'komoditi', 'status', 'thn_tanam', 'varietas', 'populasi',
+    'l_gis', 'l_rkap', 'l_hgu', 'pica', 'alas_hak', 'status_kpm',
+    'keterangan', 'mandor', 'no_aset', 'nama_pemil', 'pengelola',
+    'kabupaten', 'kecamatan', 'desa'
+  ];
+
+  const attributeList = Object.keys(p)
+    .filter((k) => !excludeKeys.has(k))
+    .sort((a, b) => {
+      const idxA = priorityOrder.indexOf(a.toLowerCase());
+      const idxB = priorityOrder.indexOf(b.toLowerCase());
+      if (idxA !== -1 && idxB !== -1) return idxA - idxB;
+      if (idxA !== -1) return -1;
+      if (idxB !== -1) return 1;
+      return a.localeCompare(b);
+    })
+    .map((k) => ({
+      key: k,
+      label: formatKeyLabel(k),
+      value: formatValue(k, p[k]),
+    }));
+
+  const attributePairs: { first: any; second: any }[] = [];
+  for (let i = 0; i < attributeList.length; i += 2) {
+    attributePairs.push({
+      first: attributeList[i],
+      second: attributeList[i + 1] || null,
+    });
+  }
+
   return (
     <>
       {/* Drawer Panel (IBM Carbon style: flat white panel, sharp edges, top border accent, resizable height) */}
@@ -307,66 +392,31 @@ export default function InfoDrawer({ feature, kebunName, geojsonData, onClose }:
           <div style={{ flex: '2 1 450px' }}>
             <table className="carbon-table">
               <tbody>
-                <tr>
-                  <td style={{ fontWeight: '600', width: '25%', background: '#f4f4f4' }}>Afdeling</td>
-                  <td style={{ width: '25%' }}>{p.afdeling || '-'}</td>
-                  <td style={{ fontWeight: '600', width: '25%', background: '#f4f4f4' }}>Komoditi</td>
-                  <td style={{ width: '25%' }}>{p.komoditi || '-'}</td>
-                </tr>
-                <tr>
-                  <td style={{ fontWeight: '600', background: '#f4f4f4' }}>Status Lahan</td>
-                  <td>{p.status || '-'}</td>
-                  <td style={{ fontWeight: '600', background: '#f4f4f4' }}>Tahun Tanam</td>
-                  <td>{p.thn_tanam || '-'}</td>
-                </tr>
-                <tr>
-                  <td style={{ fontWeight: '600', background: '#f4f4f4' }}>Luas GIS</td>
-                  <td>{p.l_gis ? `${p.l_gis.toLocaleString('id-ID', { maximumFractionDigits: 2 })} Ha` : '-'}</td>
-                  <td style={{ fontWeight: '600', background: '#f4f4f4' }}>Luas RKAP</td>
-                  <td>{p.l_rkap ? `${p.l_rkap.toLocaleString('id-ID', { maximumFractionDigits: 2 })} Ha` : '-'}</td>
-                </tr>
-                <tr>
-                  <td style={{ fontWeight: '600', background: '#f4f4f4' }}>Varietas</td>
-                  <td>{p.varietas || '-'}</td>
-                  <td style={{ fontWeight: '600', background: '#f4f4f4' }}>Populasi</td>
-                  <td>{p.populasi ? `${p.populasi.toLocaleString('id-ID')} pohon` : '-'}</td>
-                </tr>
-                <tr>
-                  <td style={{ fontWeight: '600', background: '#f4f4f4' }}>Alas Hak (Legalitas)</td>
-                  <td>{p.alas_hak || '-'}</td>
-                  <td style={{ fontWeight: '600', background: '#f4f4f4' }}>Status PICA</td>
-                  <td>
-                    {p.pica && p.pica !== 'null' ? (
-                      <span style={{ color: 'var(--cds-support-error)', fontWeight: '700' }}>
-                        ⚠️ {p.pica}
-                      </span>
+                {attributePairs.map((pair, idx) => (
+                  <tr key={idx}>
+                    <td style={{ fontWeight: '600', width: '25%', background: '#f4f4f4', fontSize: '11px', padding: '6px 12px' }}>
+                      {pair.first.label}
+                    </td>
+                    <td style={{ width: '25%', fontSize: '11px', padding: '6px 12px' }}>
+                      {pair.first.value}
+                    </td>
+                    {pair.second ? (
+                      <>
+                        <td style={{ fontWeight: '600', width: '25%', background: '#f4f4f4', fontSize: '11px', padding: '6px 12px' }}>
+                          {pair.second.label}
+                        </td>
+                        <td style={{ width: '25%', fontSize: '11px', padding: '6px 12px' }}>
+                          {pair.second.value}
+                        </td>
+                      </>
                     ) : (
-                      'Normal'
+                      <>
+                        <td style={{ fontWeight: '600', width: '25%', background: '#f4f4f4', fontSize: '11px', padding: '6px 12px' }}>-</td>
+                        <td style={{ width: '25%', fontSize: '11px', padding: '6px 12px' }}>-</td>
+                      </>
                     )}
-                  </td>
-                </tr>
-                <tr>
-                  <td style={{ fontWeight: '600', background: '#f4f4f4' }}>Manajemen / KPM</td>
-                  <td>{p.status_kpm || '-'}</td>
-                  <td style={{ fontWeight: '600', background: '#f4f4f4' }}>Administratif Desa</td>
-                  <td>{p.desa || '-'}</td>
-                </tr>
-                <tr>
-                  <td style={{ fontWeight: '600', background: '#f4f4f4' }}>Kec. & Kab.</td>
-                  <td colSpan={3}>{[p.kecamatan, p.kabupaten].filter(Boolean).join(', ') || '-'}</td>
-                </tr>
-                {p.nomor_peta && p.nomor_peta !== 'null' && (
-                  <tr>
-                    <td style={{ fontWeight: '600', background: '#f4f4f4' }}>Nomor Peta</td>
-                    <td colSpan={3}>{p.nomor_peta}</td>
                   </tr>
-                )}
-                {p.keterangan && p.keterangan !== 'null' && (
-                  <tr>
-                    <td style={{ fontWeight: '600', background: '#f4f4f4' }}>Keterangan</td>
-                    <td colSpan={3}>{p.keterangan}</td>
-                  </tr>
-                )}
+                ))}
               </tbody>
             </table>
           </div>

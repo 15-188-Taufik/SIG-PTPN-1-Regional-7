@@ -268,10 +268,10 @@ export default function MapView({
     return computeFourColorAssignment(geojsonData.features);
   }, [geojsonData]);
 
-  // Compute spatial adjacency graph 4-coloring for Afdelings
-  const fourColorAfdMap = useMemo(() => {
-    if (!geojsonData || !geojsonData.features) return new Map<string | number, string>();
-
+  // Pre-calculate Afdeling outlines once to avoid heavy Turf operations during rendering
+  const preCalculatedAfdOutlines = useMemo(() => {
+    if (!geojsonData || !geojsonData.features) return [];
+    
     const afdGroups: Record<string, any[]> = {};
     geojsonData.features.forEach((feat) => {
       const p = feat.properties;
@@ -280,19 +280,25 @@ export default function MapView({
       afdGroups[key].push(feat);
     });
 
-    const afdFeatures: any[] = [];
+    const outlines: any[] = [];
     Object.entries(afdGroups).forEach(([key, feats]) => {
       try {
         const dissolved = dissolveFeaturesCleanly(feats);
         if (dissolved) {
           dissolved.properties = { ...feats[0].properties, id: key };
-          afdFeatures.push(dissolved);
+          outlines.push(dissolved);
         }
-      } catch {}
+      } catch (err) {
+        console.error('Failed to dissolve afdeling outline:', key, err);
+      }
     });
-
-    return computeFourColorAssignment(afdFeatures);
+    return outlines;
   }, [geojsonData]);
+
+  // Compute spatial adjacency graph 4-coloring for Afdelings
+  const fourColorAfdMap = useMemo(() => {
+    return computeFourColorAssignment(preCalculatedAfdOutlines);
+  }, [preCalculatedAfdOutlines]);
 
   // Pre-calculate Kebun outlines once to avoid heavy Turf operations during rendering
   const preCalculatedKebunOutlines = useMemo(() => {
@@ -637,79 +643,11 @@ export default function MapView({
           );
 
           layerGroup = L.layerGroup([blocksLayer, outlinesLayerInstance]).addTo(currentMap);
-        } 
-        else if (effectiveDetailLevel === 'afdeling') {
-          // Group features by kebun AND afdeling AND nomor_peta
-          const afdGroups: Record<string, { feats: any[]; kebun: string; afdeling: string; nomor_peta: string; status: string; keterangan: string }> = {};
-          filteredFeatures.forEach((feat) => {
-            const p = feat.properties;
-            const kebunVal = p.kebun || 'Unknown';
-            const afdVal = p.afdeling || 'Unknown';
-            const noPetaVal = p.nomor_peta || p.no_polygon || 'Unknown';
-            const key = `${kebunVal}|||${afdVal}|||${noPetaVal}`;
-            if (!afdGroups[key]) {
-              afdGroups[key] = {
-                feats: [],
-                kebun: kebunVal,
-                afdeling: afdVal,
-                nomor_peta: noPetaVal,
-                status: p.status || '-',
-                keterangan: p.keterangan || '-'
-              };
-            }
-            afdGroups[key].feats.push(feat);
-          });
-
-          const afdFeatures: any[] = [];
-          Object.entries(afdGroups).forEach(([key, group]) => {
-            try {
-              const dissolved = dissolveFeaturesCleanly(group.feats);
-
-              if (dissolved) {
-                // Sum aggregates
-                const l_gis = group.feats.reduce((sum, f) => sum + (f.properties.l_gis || 0), 0);
-                const l_rkap = group.feats.reduce((sum, f) => sum + (f.properties.l_rkap || 0), 0);
-                const populasi = group.feats.reduce((sum, f) => sum + (f.properties.populasi || 0), 0);
-                
-                const protas_21 = group.feats.reduce((sum, f) => sum + (f.properties.protas_21 || 0), 0);
-                const protas_22 = group.feats.reduce((sum, f) => sum + (f.properties.protas_22 || 0), 0);
-                const protas_23 = group.feats.reduce((sum, f) => sum + (f.properties.protas_23 || 0), 0);
-                const protas_24 = group.feats.reduce((sum, f) => sum + (f.properties.protas_24 || f.properties.protas_23 || f.properties.protas_22 || f.properties.protas_21 || 0), 0);
-
-                const plantYears = group.feats.map((f) => {
-                  const yr = f.properties.thn_tanam;
-                  if (!yr) return null;
-                  const num = parseInt(yr.toString().replace(/[^0-9]/g, ''), 10);
-                  return isNaN(num) ? null : num;
-                }).filter(Boolean) as number[];
-                const avgYr = plantYears.length > 0 ? Math.round(plantYears.reduce((a, b) => a + b, 0) / plantYears.length) : null;
-                
-                const komodities = Array.from(new Set(group.feats.map((f) => f.properties.komoditi).filter(Boolean))).join(', ');
-                const varietas = Array.from(new Set(group.feats.map((f) => f.properties.varietas).filter(Boolean))).slice(0, 3).join(', ');
-
-                dissolved.properties = {
-                  kebun: group.kebun,
-                  afdeling: group.afdeling,
-                  nomor_peta: group.nomor_peta,
-                  status: group.status,
-                  keterangan: group.keterangan,
-                  l_gis,
-                  l_rkap,
-                  populasi,
-                  protas_21,
-                  protas_22,
-                  protas_23,
-                  protas_24,
-                  thn_tanam: avgYr ? `${avgYr}` : null,
-                  komoditi: komodities,
-                  varietas: varietas,
-                  is_afdeling_level: true
-                };
-                afdFeatures.push(dissolved);
-              }
-            } catch (err) {
-              console.error(`Failed to union afdeling outlines for key ${key}:`, err);
-            }
+        } else if (effectiveDetailLevel === 'afdeling') {
+          const afdFeatures = filteredFeatures.map((feat) => {
+            const copy = JSON.parse(JSON.stringify(feat));
+            copy.properties.is_afdeling_level = true;
+            return copy;
           });
 
           const afdLayer = L.geoJSON(
@@ -722,8 +660,8 @@ export default function MapView({
                   fillColor: hasAfd ? color : 'transparent',
                   fillOpacity: hasAfd ? 0.95 : 0,
                   stroke: true,
-                  color: hasAfd ? color : '#8d8d8d', // Match fill color so valid afdeling seams disappear; light gray for null afdelings
-                  weight: hasAfd ? 0.5 : 0.8,
+                  color: hasAfd ? '#525252' : '#8d8d8d', // Thin charcoal outline to separate every block, light gray for null
+                  weight: 0.8,
                   opacity: 1,
                 };
               },
@@ -783,16 +721,22 @@ export default function MapView({
             }
           );
 
+          // Get pre-calculated afdeling bold outlines for active kebuns
+          const activeKebunNames = Array.from(new Set(filteredFeatures.map((f) => f.properties.kebun).filter(Boolean)));
+          const afdOutlineFeatures = preCalculatedAfdOutlines.filter((outline) =>
+            activeKebunNames.includes(outline.properties.kebun)
+          );
+
           // Dedicated Afdeling Outline Boundary Lines
           const afdOutlineLayer = L.geoJSON(
-            { type: 'FeatureCollection', features: afdFeatures },
+            { type: 'FeatureCollection', features: afdOutlineFeatures },
             {
               style: (feature?: GeoJSONFeature) => {
                 const hasAfd = feature?.properties?.afdeling && feature.properties.afdeling !== 'Unknown' && feature.properties.afdeling !== '-';
                 return {
                   fill: false,
                   color: hasAfd ? '#161616' : '#8d8d8d', // Charcoal Afdeling Boundary, light gray for null afdeling
-                  weight: hasAfd ? 1.8 : 0.8,
+                  weight: 1.8,
                   opacity: 1,
                 };
               },
