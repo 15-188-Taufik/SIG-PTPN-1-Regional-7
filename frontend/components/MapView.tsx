@@ -703,12 +703,13 @@ export default function MapView({
             {
               style: (feature: GeoJSONFeature) => {
                 const color = getFeatureColor(feature, viewMode, showEmptyData, detailLevel, fourColorBlockMap, fourColorAfdMap);
+                const hasAfd = feature.properties.afdeling && feature.properties.afdeling !== 'Unknown' && feature.properties.afdeling !== '-';
                 return {
-                  fillColor: color,
-                  fillOpacity: 0.95,
+                  fillColor: hasAfd ? color : 'transparent',
+                  fillOpacity: hasAfd ? 0.95 : 0,
                   stroke: true,
-                  color: color, // Match fill color so internal block seams inside Afdeling disappear completely!
-                  weight: 0.5,
+                  color: hasAfd ? color : '#8d8d8d', // Match fill color so valid afdeling seams disappear; light gray for null afdelings
+                  weight: hasAfd ? 0.5 : 0.8,
                   opacity: 1,
                 };
               },
@@ -750,7 +751,12 @@ export default function MapView({
 
                 lyr.on({
                   mouseover: () => {
-                    lyr.setStyle({ fillOpacity: 1.0 });
+                    const hasAfd = feature.properties.afdeling && feature.properties.afdeling !== 'Unknown' && feature.properties.afdeling !== '-';
+                    if (hasAfd) {
+                      lyr.setStyle({ fillOpacity: 1.0 });
+                    } else {
+                      lyr.setStyle({ fillColor: '#888888', fillOpacity: 0.2 });
+                    }
                     lyr.bringToFront();
                     if (outlinesLayerInstance) {
                       outlinesLayerInstance.bringToFront();
@@ -771,12 +777,15 @@ export default function MapView({
           const afdOutlineLayer = L.geoJSON(
             { type: 'FeatureCollection', features: afdFeatures },
             {
-              style: () => ({
-                fill: false,
-                color: '#161616', // Charcoal Afdeling Boundary
-                weight: 1.8,
-                opacity: 1,
-              }),
+              style: (feature?: GeoJSONFeature) => {
+                const hasAfd = feature?.properties?.afdeling && feature.properties.afdeling !== 'Unknown' && feature.properties.afdeling !== '-';
+                return {
+                  fill: false,
+                  color: hasAfd ? '#161616' : '#8d8d8d', // Charcoal Afdeling Boundary, light gray for null afdeling
+                  weight: hasAfd ? 1.8 : 0.8,
+                  opacity: 1,
+                };
+              },
               interactive: false,
             }
           );

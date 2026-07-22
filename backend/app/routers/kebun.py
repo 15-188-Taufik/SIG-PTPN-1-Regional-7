@@ -75,10 +75,10 @@ class GeoJSONFallback:
                     ROMAN_NUMS = {1: "I", 2: "II", 3: "III", 4: "IV", 5: "V", 6: "VI", 7: "VII", 8: "VIII"}
                     ROMAN_VALUES = {"i": 1, "ii": 2, "iii": 3, "iv": 4, "v": 5, "vi": 6, "vii": 7, "viii": 8}
 
-                    def parse_clean_afdeling(raw_val: str, unit_name: str) -> str:
+                    def parse_clean_afdeling(raw_val: str, unit_name: str) -> Optional[str]:
                         s = str(raw_val).strip()
                         if not s or s.lower() in ["none", "null", "kso", "implasmen", "pabrik", "trikora", "keda", "bapu", "tubu", "bergen", "tulungbuyut", "kedaton"]:
-                            return "Afdeling I"
+                            return None
 
                         # Strip prefix "afdeling", "afd.", "afd"
                         lower_orig = s.lower()
