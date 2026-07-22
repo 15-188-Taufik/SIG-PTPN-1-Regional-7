@@ -294,6 +294,32 @@ export default function MapView({
     return computeFourColorAssignment(afdFeatures);
   }, [geojsonData]);
 
+  // Pre-calculate Kebun outlines once to avoid heavy Turf operations during rendering
+  const preCalculatedKebunOutlines = useMemo(() => {
+    if (!geojsonData || !geojsonData.features) return [];
+    
+    const kebunGroups: Record<string, any[]> = {};
+    geojsonData.features.forEach((feat) => {
+      const k = feat.properties.kebun || 'Unknown';
+      if (!kebunGroups[k]) kebunGroups[k] = [];
+      kebunGroups[k].push(feat);
+    });
+
+    const outlines: any[] = [];
+    Object.entries(kebunGroups).forEach(([kebunName, feats]) => {
+      try {
+        const dissolved = dissolveFeaturesCleanly(feats);
+        if (dissolved) {
+          dissolved.properties = { kebun: kebunName };
+          outlines.push(dissolved);
+        }
+      } catch (err) {
+        console.error('Failed to dissolve kebun outline:', kebunName, err);
+      }
+    });
+    return outlines;
+  }, [geojsonData]);
+
   // Toggle loading class on body when rendering map vector layers
   useEffect(() => {
     if (isProcessing) {
@@ -518,24 +544,12 @@ export default function MapView({
           return;
         }
 
-        // 1. DISSOLVE KEBUN OUTLINES (Used for bold kebun boundaries on map)
-        const kebunGroups: Record<string, any[]> = {};
-        filteredFeatures.forEach((feat) => {
-          const k = feat.properties.kebun || 'Unknown';
-          if (!kebunGroups[k]) kebunGroups[k] = [];
-          kebunGroups[k].push(feat);
-        });
-
+        // 1. GET KEBUN OUTLINES (From pre-calculated static geometries)
         const kebunOutlineFeatures: any[] = [];
-        Object.entries(kebunGroups).forEach(([kebunName, feats]) => {
-          try {
-            const dissolved = dissolveFeaturesCleanly(feats);
-            if (dissolved) {
-              dissolved.properties = { kebun: kebunName };
-              kebunOutlineFeatures.push(dissolved);
-            }
-          } catch (err) {
-            console.error(`Failed to union kebun outlines for ${kebunName}:`, err);
+        const activeKebunNames = Array.from(new Set(filteredFeatures.map((f) => f.properties.kebun).filter(Boolean)));
+        preCalculatedKebunOutlines.forEach((outline) => {
+          if (activeKebunNames.includes(outline.properties.kebun)) {
+            kebunOutlineFeatures.push(outline);
           }
         });
 
@@ -757,10 +771,6 @@ export default function MapView({
                     } else {
                       lyr.setStyle({ fillColor: '#888888', fillOpacity: 0.2 });
                     }
-                    lyr.bringToFront();
-                    if (outlinesLayerInstance) {
-                      outlinesLayerInstance.bringToFront();
-                    }
                   },
                   mouseout: () => {
                     afdLayer.resetStyle(lyr);
@@ -825,11 +835,12 @@ export default function MapView({
           });
 
           const kebunFeatures: any[] = [];
-          Object.entries(kebunGroups).forEach(([kebunName, feats]) => {
+          Object.keys(kebunAggregates).forEach((kebunName) => {
             try {
-              const dissolved = dissolveFeaturesCleanly(feats);
-
-              if (dissolved) {
+              const outline = preCalculatedKebunOutlines.find((o) => o.properties.kebun === kebunName);
+              if (outline) {
+                const dissolvedClone = JSON.parse(JSON.stringify(outline));
+                const feats = filteredFeatures.filter((f) => (f.properties.kebun || 'Unknown') === kebunName);
                 const agg = kebunAggregates[kebunName] || { l_gis: 1, l_rkap: 0, populasi: 0, protas_21: 0, protas_22: 0, protas_23: 0, protas_24: 0 };
                 const pYears = feats.map((f) => {
                   const yr = f.properties.thn_tanam;
@@ -843,7 +854,7 @@ export default function MapView({
                 const statuses = Array.from(new Set(feats.map((f) => f.properties.status).filter(Boolean))).join(', ');
                 const varietas = Array.from(new Set(feats.map((f) => f.properties.varietas).filter(Boolean))).slice(0, 3).join(', ');
 
-                dissolved.properties = {
+                dissolvedClone.properties = {
                   kebun: kebunName,
                   l_gis: agg.l_gis,
                   l_rkap: agg.l_rkap,
@@ -858,7 +869,7 @@ export default function MapView({
                   varietas: varietas,
                   is_kebun_level: true
                 };
-                kebunFeatures.push(dissolved);
+                kebunFeatures.push(dissolvedClone);
               }
             } catch (err) {
               console.error(`Failed to union kebun for ${kebunName}:`, err);
