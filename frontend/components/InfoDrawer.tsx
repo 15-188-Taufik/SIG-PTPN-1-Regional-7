@@ -311,9 +311,7 @@ export default function InfoDrawer({ feature, kebunName, geojsonData, onClose }:
           />
         </div>
 
-        {/* Scrollable Content Wrapper */}
-        <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column' }}>
-          {/* Drawer Header */}
+        {/* Drawer Header (Fixed at the top) */}
         <div
           style={{
             display: 'flex',
@@ -391,8 +389,10 @@ export default function InfoDrawer({ feature, kebunName, geojsonData, onClose }:
           </button>
         </div>
 
-        {/* Content Layout (Table on left, Chart on right) */}
-        <div style={{ display: 'flex', gap: '32px', flexWrap: 'wrap' }}>
+        {/* Scrollable Content Wrapper */}
+        <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', paddingRight: '4px' }}>
+          {/* Content Layout (Table on left, Chart on right) */}
+          <div style={{ display: 'flex', gap: '32px', flexWrap: 'wrap' }}>
           
           {/* IBM Carbon Data Table */}
           <div style={{ flex: '2 1 450px' }}>
