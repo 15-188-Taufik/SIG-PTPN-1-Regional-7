@@ -1,17 +1,24 @@
 /**
- * Google Apps Script - SIG PTPN Real-Time Integration (v2.2)
+ * Google Apps Script - SIG PTPN Real-Time Auto-Sync (v3.1 - Installable Trigger)
  * 
- * Fitur Baru:
- * 1. Dua Menu Utama Terpisah: "Kirim data ke PTPN" dan "Hapus data" di bar atas Google Sheets.
- * 2. Auto-create & Writeback ID: Menyisipkan kolom "id_fakta" secara otomatis dan menuliskan ID database kembali ke sheet.
- * 3. Edit/Replace Data: Baris yang sudah memiliki id_fakta akan di-update (termasuk tanggal & kegiatan).
- * 4. Hapus Data Terpilih: Menghapus data dari database & spreadsheet sekaligus.
+ * PENTING: Karena kebijakan keamanan Google, trigger otomatis yang memanggil
+ * API eksternal (UrlFetchApp) memerlukan "Installable Trigger" di Google Sheets.
  * 
- * Petunjuk Penggunaan:
+ * PETUNJUK SETUP UTAMA (Wajib Dilakukan Sekali):
  * 1. Di Google Sheets Anda, buka menu: Extensions -> Apps Script.
  * 2. Hapus seluruh kode lama, lalu salin (paste) seluruh isi script ini.
- * 3. Simpan proyek Apps Script dengan menekan tombol disket (Save).
- * 4. PENTING: Muat ulang (reload/refresh) halaman Google Sheets Anda di browser agar tombol menu baru muncul.
+ * 3. Simpan proyek dengan menekan tombol disket (Save).
+ * 4. Di bagian menu kiri Apps Script, klik ikon jam weker (Triggers).
+ * 5. Klik tombol "+ Add Trigger" di pojok kanan bawah.
+ * 6. Konfigurasi Trigger:
+ *    - Choose which function to run: Pilih "sigAutoSync" (JANGAN pilih onEdit)
+ *    - Choose which deployment should run: Pilih "Head"
+ *    - Select event source: Pilih "From spreadsheet"
+ *    - Select event type: Pilih "On edit"
+ * 7. Klik "Save" dan setujui izin akses keamanan yang diminta Google.
+ * 
+ * Setelah itu, setiap kali Anda selesai mengisi/mengubah baris di spreadsheet,
+ * data akan langsung sinkron secara otomatis ke database!
  */
 
 // Konfigurasi Webhook
@@ -19,114 +26,94 @@ var API_BASE_URL = "https://sig-ptpn-1-regional-7.onrender.com/api/sync";
 var API_KEY = "kunci-rahasia-pilihan-anda-2026";                       
 
 /**
- * Membuat menu kustom di bar atas Google Sheets secara terpisah.
+ * Fungsi trigger utama untuk Installable Edit Trigger.
  */
-function onOpen() {
-  var ui = SpreadsheetApp.getUi();
-  
-  // Menu 1: Kirim data ke PTPN
-  ui.createMenu('Kirim data ke PTPN')
-      .addItem('Kirim Data Sheet Aktif', 'syncActiveSheetToSIG')
-      .addToUi();
-      
-  // Menu 2: Hapus data
-  ui.createMenu('Hapus data')
-      .addItem('Hapus Baris Terpilih dari Database', 'deleteSelectedRowsFromSIG')
-      .addToUi();
-}
-
-/**
- * Fungsi utama untuk membaca data dari tab sheet aktif dan mengirimkannya ke API SIG.
- */
-function syncActiveSheetToSIG() {
-  var sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
+function sigAutoSync(e) {
+  var range = e.range;
+  var sheet = range.getSheet();
   var sheetName = sheet.getName();
   
-  // Validasi tipe sheet
+  // Validasi tab sheet yang didukung
   var validSheets = ["produksi_harian", "pemeliharaan_harian", "pemupukan_harian"];
-  if (validSheets.indexOf(sheetName) === -1) {
-    SpreadsheetApp.getUi().alert(
-      "Gagal Sinkronisasi",
-      "Nama tab sheet saat ini '" + sheetName + "' tidak valid.\n" +
-      "Pastikan Anda berada di salah satu tab berikut untuk melakukan sinkronisasi:\n" +
-      "1. produksi_harian\n" +
-      "2. pemeliharaan_harian\n" +
-      "3. pemupukan_harian",
-      SpreadsheetApp.getUi().ButtonSet.OK
-    );
-    return;
-  }
+  if (validSheets.indexOf(sheetName) === -1) return;
   
-  var lastRow = sheet.getLastRow();
-  if (lastRow < 2) {
-    SpreadsheetApp.getUi().alert("Gagal", "Sheet '" + sheetName + "' tidak memiliki baris data untuk dikirim.", SpreadsheetApp.getUi().ButtonSet.OK);
-    return;
-  }
-
-  // 1. Cek atau Buat Kolom "id_fakta" sebagai kolom pertama (Kolom A)
+  var row = range.getRow();
+  if (row === 1) return; // Jangan proses header
+  
+  // Dapatkan seluruh header kolom
   var headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
   var idColIdx = headers.indexOf("id_fakta");
+  
+  // Jika kolom 'id_fakta' tidak ditemukan, buat secara otomatis sebagai Kolom A
   if (idColIdx === -1) {
     sheet.insertColumnBefore(1);
     sheet.getRange(1, 1).setValue("id_fakta");
-    SpreadsheetApp.getActiveSpreadsheet().toast("Menambahkan kolom 'id_fakta' baru...", "Setup Kolom", 3);
-    
-    // Ambil ulang data header setelah kolom disisipkan
     headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
     idColIdx = 0;
+    // Karena kolom bergeser, sesuaikan sel yang sedang aktif
+    range = sheet.getRange(row, range.getColumn() + 1);
   }
   
-  // Membaca ulang seluruh data range
-  var data = sheet.getDataRange().getValues();
-  var payloadRows = [];
-  var rowIndices = []; // Menyimpan nomor baris asli di spreadsheet (1-based)
+  // Baca seluruh data pada baris yang sedang diedit
+  var rowValues = sheet.getRange(row, 1, 1, headers.length).getValues()[0];
+  var idFakta = rowValues[idColIdx];
   
-  // Proses baris demi baris
-  for (var i = 1; i < data.length; i++) {
-    var row = {};
-    var rowIsEmpty = true;
+  // Bentuk objek payload data
+  var rowData = {};
+  for (var j = 0; j < headers.length; j++) {
+    var headerName = headers[j].toString().trim();
+    if (headerName === "") continue;
     
-    for (var j = 0; j < headers.length; j++) {
-      var headerName = headers[j].toString().trim();
-      var cellVal = data[i][j];
-      
-      // Lewati kolom kosong tanpa header
-      if (headerName === "") continue;
-      
-      // Formatting Tanggal ke string format YYYY-MM-DD
-      if (cellVal instanceof Date) {
-        cellVal = Utilities.formatDate(cellVal, SpreadsheetApp.getActiveSpreadsheet().getSpreadsheetTimeZone(), "yyyy-MM-dd");
-      }
-      
-      // Ubah string kosong menjadi null agar Pydantic/Python tidak error tipe data
-      if (cellVal === "") {
-        cellVal = null;
-      }
-      
-      row[headerName] = cellVal;
-      
-      // Cek apakah baris ini benar-benar berisi data (kecuali id_fakta)
-      if (headerName !== "id_fakta" && cellVal !== "" && cellVal !== null && cellVal !== undefined) {
-        rowIsEmpty = false;
-      }
+    var cellVal = rowValues[j];
+    
+    // Format Tanggal ke string YYYY-MM-DD
+    if (cellVal instanceof Date) {
+      cellVal = Utilities.formatDate(cellVal, SpreadsheetApp.getActiveSpreadsheet().getSpreadsheetTimeZone(), "yyyy-MM-dd");
     }
     
-    // Hanya masukkan baris yang tidak kosong
-    if (!rowIsEmpty) {
-      payloadRows.push(row);
-      rowIndices.push(i + 1); // 1-based index baris
+    if (cellVal === "") {
+      cellVal = null;
+    }
+    rowData[headerName] = cellVal;
+  }
+  
+  // VALIDASI KOLOM WAJIB DINAMIS SESUAI SHEET
+  var isInsert = (idFakta === "" || idFakta === null || idFakta === undefined);
+  
+  if (isInsert) {
+    // 1. Tanggal wajib ada di semua tipe sheet
+    if (!rowData["tanggal"]) return;
+
+    if (sheetName === "produksi_harian") {
+      // Produksi Harian butuh afdeling
+      var hasAfd = rowData["id_afdeling"] || (rowData["kebun"] && rowData["afdeling"]);
+      if (!hasAfd) return;
+    } 
+    else if (sheetName === "pemeliharaan_harian") {
+      // Pemeliharaan Harian butuh jenis_kegiatan & pengenal blok
+      if (!rowData["jenis_kegiatan"]) return;
+      var hasBlok = rowData["blok_id"] || rowData["kode_blok"] || rowData["no_polygon"];
+      if (!hasBlok) return;
+    } 
+    else if (sheetName === "pemupukan_harian") {
+      // Pemupukan Harian butuh jenis_pupuk, jumlah_pupuk & pengenal blok
+      if (!rowData["jenis_pupuk"] || rowData["jumlah_pupuk"] === null || rowData["jumlah_pupuk"] === undefined) return;
+      var hasBlok = rowData["blok_id"] || rowData["kode_blok"] || rowData["no_polygon"];
+      if (!hasBlok) return;
     }
   }
   
-  if (payloadRows.length === 0) {
-    SpreadsheetApp.getUi().alert("Gagal", "Tidak ada data yang valid untuk dikirim.", SpreadsheetApp.getUi().ButtonSet.OK);
-    return;
-  }
-  
-  // Siapkan payload JSON
+  // Kirim data baris ke database
+  syncSingleRowToSIG(sheet, row, idColIdx, sheetName, rowData, isInsert);
+}
+
+/**
+ * Mengirimkan data baris ke webhook backend
+ */
+function syncSingleRowToSIG(sheet, rowNum, idColIdx, sheetType, rowData, isInsert) {
   var payload = {
-    "sheet_type": sheetName,
-    "rows": payloadRows
+    "sheet_type": sheetType,
+    "rows": [rowData]
   };
   
   var options = {
@@ -139,171 +126,26 @@ function syncActiveSheetToSIG() {
     "muteHttpExceptions": true
   };
   
-  SpreadsheetApp.getActiveSpreadsheet().toast("Sedang mensinkronisasi " + payloadRows.length + " data...", "Sinkronisasi...", 10);
-  
   try {
     var response = UrlFetchApp.fetch(API_BASE_URL + "/webhook", options);
     var responseCode = response.getResponseCode();
     var responseText = response.getContentText();
     var result = JSON.parse(responseText);
     
-    if (responseCode === 200) {
-      // 2. Tulis Kembali ID ke Kolom "id_fakta" (Writeback) secara batch
-      if (result.row_ids && result.row_ids.length === payloadRows.length) {
-        var freshLastRow = sheet.getLastRow();
-        var idRange = sheet.getRange(1, idColIdx + 1, freshLastRow, 1);
-        var idValues = idRange.getValues();
-        
-        for (var k = 0; k < result.row_ids.length; k++) {
-          var targetSheetRowIdx = rowIndices[k] - 1; // 0-based array index
-          idValues[targetSheetRowIdx][0] = result.row_ids[k];
-        }
-        
-        idRange.setValues(idValues);
-      }
-      
-      var summaryMsg = "Sinkronisasi Berhasil!\n" +
-                       "• Total data diproses: " + result.processed + "\n" +
-                       "• Sukses tersimpan (Upsert): " + result.inserted_updated + "\n";
-      
-      if (result.errors && result.errors.length > 0) {
-        summaryMsg += "\nBeberapa baris dilewati karena error:\n" + result.errors.join("\n");
-        SpreadsheetApp.getUi().alert("Sinkronisasi Selesai dengan Catatan", summaryMsg, SpreadsheetApp.getUi().ButtonSet.OK);
+    if (responseCode === 200 && result.row_ids && result.row_ids.length > 0) {
+      // Tulis kembali ID fakta ke kolom A jika ini adalah baris baru
+      if (isInsert) {
+        sheet.getRange(rowNum, idColIdx + 1).setValue(result.row_ids[0]);
+        SpreadsheetApp.getActiveSpreadsheet().toast("Data baru disinkronisasi ke database. ID: " + result.row_ids[0], "Auto-Sync Sukses", 3);
       } else {
-        SpreadsheetApp.getUi().alert("Sukses", summaryMsg, SpreadsheetApp.getUi().ButtonSet.OK);
+        SpreadsheetApp.getActiveSpreadsheet().toast("Perubahan data di-update ke database. ID: " + rowData.id_fakta, "Auto-Sync Sukses", 3);
       }
     } else {
       var errorDetail = result.detail || responseText;
-      SpreadsheetApp.getUi().alert(
-        "Koneksi Gagal (HTTP " + responseCode + ")",
-        "Pesan server:\n" + errorDetail,
-        SpreadsheetApp.getUi().ButtonSet.OK
-      );
+      Logger.log("Auto-Sync Gagal: " + errorDetail);
+      SpreadsheetApp.getActiveSpreadsheet().toast("Error: " + errorDetail, "Auto-Sync Gagal", 4);
     }
   } catch (error) {
-    SpreadsheetApp.getUi().alert(
-      "Gagal Menghubungi Server SIG",
-      "Tidak dapat terhubung ke URL API: " + API_BASE_URL + "/webhook\n\n" +
-      "Detail teknis: " + error.toString(),
-      SpreadsheetApp.getUi().ButtonSet.OK
-    );
+    Logger.log("Gagal menghubungi server SIG: " + error.toString());
   }
-}
-
-/**
- * Menghapus baris terpilih dari database dan menghapusnya dari spreadsheet.
- */
-function deleteSelectedRowsFromSIG() {
-  var sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
-  var sheetName = sheet.getName();
-  
-  // Validasi tipe sheet
-  var validSheets = ["produksi_harian", "pemeliharaan_harian", "pemupukan_harian"];
-  if (validSheets.indexOf(sheetName) === -1) {
-    SpreadsheetApp.getUi().alert("Error", "Gunakan fitur ini di tab: produksi_harian, pemeliharaan_harian, atau pemupukan_harian", SpreadsheetApp.getUi().ButtonSet.OK);
-    return;
-  }
-  
-  var range = sheet.getActiveRange();
-  if (!range) {
-    SpreadsheetApp.getUi().alert("Info", "Pilih baris atau sel yang ingin dihapus terlebih dahulu.", SpreadsheetApp.getUi().ButtonSet.OK);
-    return;
-  }
-  
-  var startRow = range.getRow();
-  var numRows = range.getNumRows();
-  
-  // Ambil header
-  var headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
-  var idColIdx = headers.indexOf("id_fakta");
-  if (idColIdx === -1) {
-    SpreadsheetApp.getUi().alert("Peringatan", "Kolom 'id_fakta' tidak ditemukan. Sinkronisasi harus dijalankan minimal sekali agar kolom 'id_fakta' terbentuk.", SpreadsheetApp.getUi().ButtonSet.OK);
-    return;
-  }
-  
-  var idsToDelete = [];
-  var rowsToDeleteLocal = []; // Untuk melacak baris mana saja yang akan kita delete dari sheet
-  
-  // Baca ID dari baris yang dipilih
-  for (var i = 0; i < numRows; i++) {
-    var currentRowNum = startRow + i;
-    if (currentRowNum === 1) continue; // Jangan hapus header
-    
-    var idVal = sheet.getRange(currentRowNum, idColIdx + 1).getValue();
-    
-    if (idVal !== "" && idVal !== null && idVal !== undefined) {
-      idsToDelete.push(Number(idVal));
-    }
-    rowsToDeleteLocal.push(currentRowNum);
-  }
-  
-  if (rowsToDeleteLocal.length === 0) {
-    SpreadsheetApp.getUi().alert("Info", "Tidak ada baris data yang terpilih untuk dihapus.", SpreadsheetApp.getUi().ButtonSet.OK);
-    return;
-  }
-  
-  // Jika ada ID yang terdaftar di database, minta konfirmasi dan hapus di backend
-  if (idsToDelete.length > 0) {
-    var confirmResponse = SpreadsheetApp.getUi().alert(
-      "Konfirmasi Penghapusan",
-      "Apakah Anda yakin ingin menghapus " + idsToDelete.length + " data terpilih dari database Supabase?\nTindakan ini tidak dapat dibatalkan.",
-      SpreadsheetApp.getUi().ButtonSet.YES_NO
-    );
-    
-    if (confirmResponse !== SpreadsheetApp.getUi().Button.YES) {
-      return;
-    }
-    
-    // Kirim request delete ke Backend
-    var payload = {
-      "sheet_type": sheetName,
-      "ids": idsToDelete
-    };
-    
-    var options = {
-      "method": "post",
-      "contentType": "application/json",
-      "headers": {
-        "X-API-Key": API_KEY
-      },
-      "payload": JSON.stringify(payload),
-      "muteHttpExceptions": true
-    };
-    
-    try {
-      var response = UrlFetchApp.fetch(API_BASE_URL + "/delete", options);
-      var responseCode = response.getResponseCode();
-      var responseText = response.getContentText();
-      var result = JSON.parse(responseText);
-      
-      if (responseCode !== 200) {
-        var errorDetail = result.detail || responseText;
-        SpreadsheetApp.getUi().alert("Gagal Hapus", "Gagal menghapus dari database server:\n" + errorDetail, SpreadsheetApp.getUi().ButtonSet.OK);
-        return;
-      }
-      
-      SpreadsheetApp.getActiveSpreadsheet().toast("Berhasil menghapus " + result.deleted_count + " data dari database.", "Sukses", 3);
-    } catch (error) {
-      SpreadsheetApp.getUi().alert("Gagal Terhubung", "Gagal menghubungi server untuk menghapus data:\n" + error.toString(), SpreadsheetApp.getUi().ButtonSet.OK);
-      return;
-    }
-  } else {
-    // Jika tidak ada ID database (data baru belum disinkronisasi), langsung konfirmasi hapus lokal saja
-    var confirmLocal = SpreadsheetApp.getUi().alert(
-      "Hapus Baris Lokal",
-      "Baris yang dipilih belum ter-posting ke database. Hapus baris dari Google Sheets?",
-      SpreadsheetApp.getUi().ButtonSet.YES_NO
-    );
-    if (confirmLocal !== SpreadsheetApp.getUi().Button.YES) {
-      return;
-    }
-  }
-  
-  // Hapus baris dari spreadsheet secara lokal (diurutkan terbalik agar index tidak bergeser)
-  rowsToDeleteLocal.sort(function(a, b) { return b - a; });
-  for (var j = 0; j < rowsToDeleteLocal.length; j++) {
-    sheet.deleteRow(rowsToDeleteLocal[j]);
-  }
-  
-  SpreadsheetApp.getActiveSpreadsheet().toast("Baris berhasil dihapus dari Spreadsheet.", "Selesai", 3);
 }

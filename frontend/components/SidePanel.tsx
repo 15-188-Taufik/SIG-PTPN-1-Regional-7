@@ -90,17 +90,7 @@ export default function SidePanel({
     }));
   }
 
-  function handleToggleAll() {
-    if (activeKebun.length === kebunList.length) {
-      kebunList.forEach((k) => {
-        if (activeKebun.includes(k)) onToggleKebun(k);
-      });
-    } else {
-      kebunList.forEach((k) => {
-        if (!activeKebun.includes(k)) onToggleKebun(k);
-      });
-    }
-  }
+
 
   // Parse alerts from GeoJSON data
   const alerts: AlertItem[] = [];
@@ -588,70 +578,6 @@ export default function SidePanel({
                   </div>
                 </div>
 
-                {/* View Mode Selector */}
-                <div>
-                  <div style={sectionLabel}>Tampilan Analisis</div>
-                  <select
-                    value={viewMode}
-                    onChange={(e) => onViewModeChange(e.target.value as ViewMode)}
-                    style={{
-                      width: '100%',
-                      padding: '8px 12px',
-                      background: '#ffffff',
-                      border: '1px solid var(--cds-border-strong)',
-                      borderBottom: '2px solid var(--cds-border-strong)',
-                      color: 'var(--cds-text-primary)',
-                      fontSize: '12px',
-                      fontWeight: '500',
-                      cursor: 'pointer',
-                      outline: 'none',
-                      fontFamily: 'inherit',
-                      borderRadius: '0px',
-                    }}
-                  >
-                    <option value="default">Tampilan Wilayah Kebun </option>
-                    <option value="productivity">Produktivitas Lahan (kg/Ha)</option>
-                    <option value="age">Umur Lahan Tanaman</option>
-                    <option value="density">Kerapatan Pohon (Pohon/Ha)</option>
-                  </select>
-                </div>
-
-                {/* Show Empty Data Toggle Checkbox */}
-                {viewMode !== 'default' && (
-                  <div
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '8px',
-                      marginTop: '4px',
-                    }}
-                  >
-                    <input
-                      id="show-empty-checkbox"
-                      type="checkbox"
-                      checked={showEmptyData}
-                      onChange={(e) => onShowEmptyDataChange(e.target.checked)}
-                      style={{
-                        width: '14px',
-                        height: '14px',
-                        cursor: 'pointer',
-                        accentColor: 'var(--cds-primary)',
-                      }}
-                    />
-                    <label
-                      htmlFor="show-empty-checkbox"
-                      style={{
-                        fontSize: '11.5px',
-                        color: 'var(--cds-text-secondary)',
-                        cursor: 'pointer',
-                        userSelect: 'none',
-                        fontWeight: '500',
-                      }}
-                    >
-                      Tampilkan Data Kosong (Abu-abu)
-                    </label>
-                  </div>
-                )}
 
                 {/* Stats Summary Tile */}
                 {stats && (
@@ -674,178 +600,7 @@ export default function SidePanel({
                   </div>
                 )}
 
-                {/* Kebun Filter Checklist */}
-                <div>
-                  <div
-                    style={{
-                      ...sectionLabel,
-                      display: 'flex',
-                      justifyContent: 'space-between',
-                      alignItems: 'center',
-                    }}
-                  >
-                    <span>Filter Kebun</span>
-                    <button onClick={handleToggleAll} style={toggleAllStyle}>
-                      {activeKebun.length === kebunList.length ? 'Kosongkan' : 'Pilih'} Semua
-                    </button>
-                  </div>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                    {loading
-                      ? [1, 2, 3, 4, 5].map((i) => <SkeletonRow key={i} />)
-                      : kebunList.map((kebun) => {
-                          const isActive = activeKebun.includes(kebun);
-                          const color = KEBUN_COLORS[kebun] || '#848684';
-                          const kebunStat = stats?.per_kebun.find((s) => s.kebun === kebun);
-                          return (
-                             <div
-                               key={kebun}
-                               style={{
-                                 display: 'flex',
-                                 alignItems: 'stretch',
-                                 width: '100%',
-                                 background: 'var(--cds-border)',
-                                 gap: '1px',
-                               }}
-                             >
-                               {/* Card Button: Highlights/zooms to kebun */}
-                               <button
-                                 onClick={() => onHighlightKebun && onHighlightKebun(kebun)}
-                                 style={{
-                                   flex: 1,
-                                   display: 'flex',
-                                   alignItems: 'center',
-                                   gap: '12px',
-                                   padding: '10px 12px',
-                                   background: '#ffffff',
-                                   borderTop: `1px solid ${isActive ? 'var(--cds-border-strong)' : 'var(--cds-border)'}`,
-                                   borderRight: 'none',
-                                   borderBottom: `1px solid ${isActive ? 'var(--cds-border-strong)' : 'var(--cds-border)'}`,
-                                   borderLeft: `4px solid ${color}`,
-                                   cursor: 'pointer',
-                                   textAlign: 'left',
-                                   transition: 'all 0.1s ease',
-                                   fontFamily: 'inherit',
-                                   borderRadius: '0px',
-                                 }}
-                                 title={`Klik untuk menyoroti kebun ${getKebunDisplayName(kebun)}`}
-                                 onMouseEnter={(e) => e.currentTarget.style.background = '#f4f4f4'}
-                                 onMouseLeave={(e) => e.currentTarget.style.background = '#ffffff'}
-                               >
-                                 <div style={{ flex: 1, minWidth: 0 }}>
-                                   <div
-                                     style={{
-                                       fontSize: '13px',
-                                       fontWeight: '600',
-                                       color: 'var(--cds-text-primary)',
-                                     }}
-                                   >
-                                     Kebun {getKebunDisplayName(kebun)}
-                                   </div>
-                                   {kebunStat && (
-                                     <div
-                                       style={{
-                                         fontSize: '11px',
-                                         color: 'var(--cds-text-secondary)',
-                                         marginTop: '2px',
-                                       }}
-                                     >
-                                       {kebunStat.jumlah_blok} blok ·{' '}
-                                       {kebunStat.total_luas.toLocaleString('id-ID', {
-                                         maximumFractionDigits: 1,
-                                       })}{' '}
-                                       Ha
-                                     </div>
-                                   )}
-                                 </div>
-                               </button>
 
-                               {/* Checkbox Button: Toggles kebun on/off on map */}
-                               <button
-                                 onClick={(e) => {
-                                   e.stopPropagation();
-                                   onToggleKebun(kebun);
-                                 }}
-                                 style={{
-                                   width: '40px',
-                                   background: '#ffffff',
-                                   border: 'none',
-                                   borderTop: `1px solid ${isActive ? 'var(--cds-border-strong)' : 'var(--cds-border)'}`,
-                                   borderBottom: `1px solid ${isActive ? 'var(--cds-border-strong)' : 'var(--cds-border)'}`,
-                                   display: 'flex',
-                                   alignItems: 'center',
-                                   justifyContent: 'center',
-                                   cursor: 'pointer',
-                                   color: 'var(--cds-primary)',
-                                   transition: 'background 0.1s ease',
-                                   borderRadius: '0px',
-                                 }}
-                                 title={isActive ? 'Sembunyikan dari peta' : 'Tampilkan di peta'}
-                                 onMouseEnter={(e) => e.currentTarget.style.background = '#f4f4f4'}
-                                 onMouseLeave={(e) => e.currentTarget.style.background = '#ffffff'}
-                               >
-                                 <div
-                                   style={{
-                                     width: '14px',
-                                     height: '14px',
-                                     border: '1.5px solid var(--cds-border-strong)',
-                                     display: 'flex',
-                                     alignItems: 'center',
-                                     justifyContent: 'center',
-                                     flexShrink: 0,
-                                     background: isActive ? 'var(--cds-primary)' : 'transparent',
-                                     borderColor: isActive ? 'var(--cds-primary)' : 'var(--cds-border-strong)',
-                                   }}
-                                 >
-                                   {isActive && (
-                                     <svg width="8" height="8" viewBox="0 0 10 10" fill="none">
-                                       <path
-                                         d="M2 5L4 7L8 3"
-                                         stroke="white"
-                                         strokeWidth="2.5"
-                                         strokeLinecap="round"
-                                       />
-                                     </svg>
-                                   )}
-                                 </div>
-                               </button>
-
-                               {/* Aggregate Chart Action Button */}
-                               <button
-                                 onClick={(e) => {
-                                   e.stopPropagation();
-                                   if (onSelectKebunAnalysis) {
-                                     onSelectKebunAnalysis(kebun);
-                                   }
-                                 }}
-                                 style={{
-                                   width: '40px',
-                                   background: '#ffffff',
-                                   border: 'none',
-                                   borderTop: `1px solid ${isActive ? 'var(--cds-border-strong)' : 'var(--cds-border)'}`,
-                                   borderBottom: `1px solid ${isActive ? 'var(--cds-border-strong)' : 'var(--cds-border)'}`,
-                                   borderRight: `1px solid ${isActive ? 'var(--cds-border-strong)' : 'var(--cds-border)'}`,
-                                   display: 'flex',
-                                   alignItems: 'center',
-                                   justifyContent: 'center',
-                                   cursor: 'pointer',
-                                   color: 'var(--cds-primary)',
-                                   transition: 'background 0.1s ease',
-                                   borderRadius: '0px',
-                                 }}
-                                 title={`Analisis Graf Kebun ${kebun}`}
-                                 onMouseEnter={(e) => e.currentTarget.style.background = '#f4f4f4'}
-                                 onMouseLeave={(e) => e.currentTarget.style.background = '#ffffff'}
-                               >
-                                 <svg width="16" height="16" viewBox="0 0 32 32" fill="none" stroke="currentColor" strokeWidth="2.5">
-                                   <path d="M4 4v24h24" />
-                                   <path d="M8 20l6-6 6 6 8-8" />
-                                 </svg>
-                               </button>
-                             </div>
-                          );
-                        })}
-                  </div>
-                </div>
 
                 {/* Komoditi breakdown */}
                 {stats && stats.per_komoditi.length > 0 && (
@@ -1264,15 +1019,6 @@ const komoditiRowStyle: React.CSSProperties = {
   border: '1px solid var(--cds-border)',
 };
 
-const toggleAllStyle: React.CSSProperties = {
-  background: 'none',
-  border: 'none',
-  color: 'var(--cds-primary)',
-  fontSize: '11px',
-  cursor: 'pointer',
-  fontFamily: 'inherit',
-  fontWeight: '600',
-};
 
 function hexToRgb(hex: string): string {
   const r = parseInt(hex.slice(1, 3), 16);

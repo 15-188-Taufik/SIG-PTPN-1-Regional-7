@@ -1,17 +1,17 @@
 'use client';
 
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import dynamic from 'next/dynamic';
 import { fetchKebun, fetchStats, fetchKebunList } from '@/lib/api';
-import { clearToken, isAuthenticated, getUsername } from '@/lib/auth';
+import { clearToken, isAuthenticated } from '@/lib/auth';
 import { FeatureCollection, GeoJSONFeature, StatsResponse } from '@/types/kebun';
 import StatsBar from '@/components/StatsBar';
 import InfoDrawer from '@/components/InfoDrawer';
 import SidePanel from '@/components/SidePanel';
+import RightFilterPanel from '@/components/RightFilterPanel';
 import type { ViewMode } from '@/components/MapView';
 import CarbonLoader from '@/components/CarbonLoader';
-
 import HeaderNav from '@/components/HeaderNav';
 
 // Dynamically import Leaflet map (client-side only, no SSR)
@@ -33,6 +33,14 @@ export default function DashboardPage() {
   const [detailLevel, setDetailLevel] = useState<'block' | 'afdeling' | 'kebun'>('block');
   const [mounted, setMounted] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  
+  // Looker Studio style filters
+  const [selectedCommodity, setSelectedCommodity] = useState<string>('Semua');
+  const [selectedCropStatus, setSelectedCropStatus] = useState<string>('Semua');
+  const [selectedYearMin, setSelectedYearMin] = useState<number>(1990);
+  const [selectedYearMax, setSelectedYearMax] = useState<number>(2026);
+  const [rightSidebarCollapsed, setRightSidebarCollapsed] = useState(false);
+
   const mapInstanceRef = useRef<any>(null);
 
   // Set mounted status on client load
@@ -57,7 +65,7 @@ export default function DashboardPage() {
     return () => document.body.classList.remove('loading-state');
   }, [loading]);
 
-  // Load initial data in parallel (utilizing in-memory cache for instant tab switching)
+  // Load initial data in parallel
   const loadData = useCallback(async (forceRefresh = false) => {
     try {
       if (!geojsonData || forceRefresh) {
@@ -68,13 +76,11 @@ export default function DashboardPage() {
         fetchStats(forceRefresh),
         fetchKebunList(forceRefresh),
       ]);
-      // Sort kebun names: alphabetical order, but KSO is placed at the very bottom
       const sortedList = [...listData].sort((a, b) => a.localeCompare(b));
       setGeojsonData(geoData);
       setStats(statsData);
       setKebunList(sortedList);
       
-      // Preserve active selection status, otherwise set all active by default
       setActiveKebun((prev) => {
         if (prev.length > 0) {
           return prev.filter((k) => sortedList.includes(k));
@@ -115,7 +121,7 @@ export default function DashboardPage() {
           mapInstanceRef.current.flyToBounds(bounds, { 
             padding: [60, 60],
             animate: true,
-            duration: 1.5 // 1.5 seconds smooth flying zoom transition
+            duration: 1.5
           });
         }
       } catch (err) {
@@ -145,7 +151,6 @@ export default function DashboardPage() {
       });
     }
 
-    // Pass fresh object reference so useEffect([selectedFeature]) always triggers
     setSelectedFeature({ ...feature, _ts: Date.now() } as any);
   }, []);
 
@@ -153,6 +158,141 @@ export default function DashboardPage() {
     clearToken();
     router.replace('/login');
   }
+
+  // 1. Recalculate filtered GeoJSON features on the fly based on Looker filters
+  const filteredGeojsonData = useMemo(() => {
+    if (!geojsonData) return null;
+    
+    let features = geojsonData.features;
+
+    // Filter by active Kebun
+    if (activeKebun.length > 0) {
+      features = features.filter((f) => activeKebun.includes(f.properties.kebun || ''));
+    }
+
+    // Filter by Commodity
+    if (selectedCommodity !== 'Semua') {
+      features = features.filter((f) => {
+        const c = (f.properties.komoditi || '').toLowerCase();
+        if (selectedCommodity === 'Karet') return c.includes('karet');
+        if (selectedCommodity === 'Tebu') return c.includes('tebu');
+        return !c.includes('karet') && !c.includes('tebu');
+      });
+    }
+
+    // Filter by Crop Status
+    if (selectedCropStatus !== 'Semua') {
+      features = features.filter((f) => {
+        const s = (f.properties.status || '').toLowerCase();
+        if (selectedCropStatus === 'TM') return s.includes('tm');
+        if (selectedCropStatus === 'TBM') return s.includes('tbm');
+        return false;
+      });
+    }
+
+    // Filter by Planting Year Range
+    features = features.filter((f) => {
+      const yr = f.properties.thn_tanam;
+      if (!yr) return true;
+      const plantYear = parseInt(yr.toString().replace(/[^0-9]/g, ''), 10);
+      if (isNaN(plantYear) || plantYear < 1900) return true;
+      return plantYear >= selectedYearMin && plantYear <= selectedYearMax;
+    });
+
+    return { ...geojsonData, features };
+  }, [geojsonData, activeKebun, selectedCommodity, selectedCropStatus, selectedYearMin, selectedYearMax]);
+
+  // 2. Recalculate dashboard statistics dynamically based on Looker active filters
+  const computedStats = useMemo(() => {
+    if (!geojsonData) return null;
+
+    // Base filtered features before applying Kebun unit filter (for per-kebun counts)
+    let baseFiltered = geojsonData.features;
+
+    if (selectedCommodity !== 'Semua') {
+      baseFiltered = baseFiltered.filter((f) => {
+        const c = (f.properties.komoditi || '').toLowerCase();
+        if (selectedCommodity === 'Karet') return c.includes('karet');
+        if (selectedCommodity === 'Tebu') return c.includes('tebu');
+        return !c.includes('karet') && !c.includes('tebu');
+      });
+    }
+
+    if (selectedCropStatus !== 'Semua') {
+      baseFiltered = baseFiltered.filter((f) => {
+        const s = (f.properties.status || '').toLowerCase();
+        if (selectedCropStatus === 'TM') return s.includes('tm');
+        if (selectedCropStatus === 'TBM') return s.includes('tbm');
+        return false;
+      });
+    }
+
+    baseFiltered = baseFiltered.filter((f) => {
+      const yr = f.properties.thn_tanam;
+      if (!yr) return true;
+      const plantYear = parseInt(yr.toString().replace(/[^0-9]/g, ''), 10);
+      if (isNaN(plantYear) || plantYear < 1900) return true;
+      return plantYear >= selectedYearMin && plantYear <= selectedYearMax;
+    });
+
+    // Compute per-kebun list based on these baseFiltered features
+    const kebunStatsMap: Record<string, { jumlah_blok: number; total_luas: number }> = {};
+    kebunList.forEach((k) => {
+      kebunStatsMap[k] = { jumlah_blok: 0, total_luas: 0 };
+    });
+
+    baseFiltered.forEach((f) => {
+      const k = f.properties.kebun;
+      if (k && kebunStatsMap[k] !== undefined) {
+        kebunStatsMap[k].jumlah_blok += 1;
+        kebunStatsMap[k].total_luas += f.properties.l_gis || 0;
+      }
+    });
+
+    const per_kebun = Object.entries(kebunStatsMap).map(([name, stat]) => ({
+      kebun: name,
+      jumlah_blok: stat.jumlah_blok,
+      total_luas: stat.total_luas
+    }));
+
+    // Apply activeKebun filter for final overall totals and commodity distributions
+    let finalFiltered = baseFiltered;
+    if (activeKebun.length > 0) {
+      finalFiltered = finalFiltered.filter((f) => activeKebun.includes(f.properties.kebun || ''));
+    }
+
+    let total_blok = finalFiltered.length;
+    let total_luas_gis = 0;
+    let total_luas_rkap = 0;
+    const komoditiStatsMap: Record<string, { jumlah_blok: number; total_luas: number }> = {};
+
+    finalFiltered.forEach((f) => {
+      total_luas_gis += f.properties.l_gis || 0;
+      total_luas_rkap += f.properties.l_rkap || 0;
+
+      const c = f.properties.komoditi || 'Lainnya';
+      if (!komoditiStatsMap[c]) {
+        komoditiStatsMap[c] = { jumlah_blok: 0, total_luas: 0 };
+      }
+      komoditiStatsMap[c].jumlah_blok += 1;
+      komoditiStatsMap[c].total_luas += f.properties.l_gis || 0;
+    });
+
+    const per_komoditi = Object.entries(komoditiStatsMap).map(([name, stat]) => ({
+      komoditi: name,
+      jumlah_blok: stat.jumlah_blok,
+      total_luas: stat.total_luas
+    }));
+
+    return {
+      total_blok,
+      total_luas_gis,
+      total_luas_rkap,
+      per_kebun,
+      per_komoditi,
+      per_status: []
+    } as StatsResponse;
+  }, [geojsonData, activeKebun, selectedCommodity, selectedCropStatus, selectedYearMin, selectedYearMax, kebunList]);
 
   return (
     <div
@@ -179,14 +319,14 @@ export default function DashboardPage() {
           onToggleKebun={handleToggleKebun}
           onHighlightKebun={handleHighlightKebun}
           onUploadSuccess={loadData}
-          stats={stats}
+          stats={computedStats}
           loading={loading}
           onLogout={handleLogout}
           viewMode={viewMode}
           onViewModeChange={setViewMode}
           showEmptyData={showEmptyData}
           onShowEmptyDataChange={setShowEmptyData}
-          geojsonData={geojsonData}
+          geojsonData={filteredGeojsonData}
           onSelectFeature={handleSelectFeatureFromAlert}
           onSelectKebunAnalysis={setSelectedKebunAnalysis}
           detailLevel={detailLevel}
@@ -246,7 +386,7 @@ export default function DashboardPage() {
           {/* Map View */}
           {!loading ? (
             <MapView
-              geojsonData={geojsonData}
+              geojsonData={filteredGeojsonData}
               onFeatureClick={handleFeatureClick}
               activeKebun={activeKebun}
               viewMode={viewMode}
@@ -259,20 +399,42 @@ export default function DashboardPage() {
             <CarbonLoader overlay description="Memuat Peta & Data SIG..." />
           )}
 
-          {/* Top-right floating Stats panel (Carbon light style) */}
-          <StatsBar stats={stats} loading={loading} />
+          {/* Top-right floating Stats panel */}
+          <StatsBar stats={computedStats} loading={loading} />
 
           {/* Bottom sliding InfoDrawer */}
           <InfoDrawer
             feature={selectedFeature}
             kebunName={selectedKebunAnalysis}
-            geojsonData={geojsonData}
+            geojsonData={filteredGeojsonData}
             onClose={() => {
               setSelectedFeature(null);
               setSelectedKebunAnalysis(null);
             }}
           />
         </div>
+
+        {/* Right Docked Filter Panel (Looker Center) */}
+        <RightFilterPanel
+          kebunList={kebunList}
+          activeKebun={activeKebun}
+          onToggleKebun={handleToggleKebun}
+          onHighlightKebun={handleHighlightKebun}
+          selectedCommodity={selectedCommodity}
+          onCommodityChange={setSelectedCommodity}
+          selectedCropStatus={selectedCropStatus}
+          onCropStatusChange={setSelectedCropStatus}
+          selectedYearMin={selectedYearMin}
+          onYearMinChange={setSelectedYearMin}
+          selectedYearMax={selectedYearMax}
+          onYearMaxChange={setSelectedYearMax}
+          viewMode={viewMode}
+          onViewModeChange={setViewMode}
+          showEmptyData={showEmptyData}
+          onShowEmptyDataChange={setShowEmptyData}
+          collapsed={rightSidebarCollapsed}
+          onToggleCollapse={() => setRightSidebarCollapsed(!rightSidebarCollapsed)}
+        />
       </div>
     </div>
   );
