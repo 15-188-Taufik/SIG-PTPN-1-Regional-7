@@ -197,11 +197,6 @@ def import_file(conn, filepath: Path):
     insert_sql = f"""
         INSERT INTO blok_kebun ({', '.join(DB_COLUMNS)})
         VALUES ({placeholders_non_geom}, ST_Multi(ST_Force2D(ST_SetSRID(ST_GeomFromGeoJSON(%s), 4326))), %s)
-        ON CONFLICT (kebun, no_polygon) DO UPDATE SET
-            kebun = EXCLUDED.kebun,
-            l_gis = EXCLUDED.l_gis,
-            status = EXCLUDED.status,
-            imported_at = NOW()
     """
 
     cur = conn.cursor()

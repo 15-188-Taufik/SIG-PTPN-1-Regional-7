@@ -11,7 +11,7 @@ class BlokKebun(Base):
     # Identitas blok
     kebun = Column(Text, nullable=False, index=True)
     kode_blok = Column(Text)
-    no_polygon = Column(Text, unique=True)
+    no_polygon = Column(Text, index=True)
     no_aset = Column(Text)
     afdeling = Column(Text, index=True)
     # Komoditi & budidaya
