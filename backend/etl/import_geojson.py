@@ -113,7 +113,8 @@ def process_feature(feature: dict, source_file: str) -> tuple | None:
                 val = "Unit Bergen"
 
         elif db_col == "afdeling":
-            orig_afdeling = str(val or "").strip()
+            raw_val = props.get("SAP_Afd") or props.get("sap_afd") or props.get("SAP_AFD") or val or props.get("Afdeling") or props.get("afdeling")
+            orig_afdeling = str(raw_val or "").strip()
             sf_lower = source_file.lower()
             
             ROMAN_NUMS = {1: "I", 2: "II", 3: "III", 4: "IV", 5: "V", 6: "VI", 7: "VII", 8: "VIII"}

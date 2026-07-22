@@ -63,7 +63,7 @@ class GeoJSONFallback:
 
                     kode_blok_val = props.get("Kode_Blok") or props.get("kode_blok")
                     thn_tanam_val = props.get("Thn_Tanam") or props.get("thn_tanam")
-                    raw_afdeling = props.get("Afdeling") or props.get("afdeling") or ""
+                    raw_afdeling = props.get("SAP_Afd") or props.get("sap_afd") or props.get("SAP_AFD") or props.get("Afdeling") or props.get("afdeling") or ""
 
                     # Patch data spasial kosong atas masukan user
                     if no_polygon == "7000079":
