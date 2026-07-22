@@ -229,8 +229,14 @@ export default function InfoDrawer({ feature, kebunName, geojsonData, onClose }:
     'kabupaten', 'kecamatan', 'desa'
   ];
 
-  const attributeList = Object.keys(p)
-    .filter((k) => !excludeKeys.has(k))
+  const keys = Object.keys(p);
+  const attributeList = keys
+    .filter((k) => {
+      if (k !== k.toLowerCase() && keys.includes(k.toLowerCase())) {
+        return false;
+      }
+      return !excludeKeys.has(k);
+    })
     .sort((a, b) => {
       const idxA = priorityOrder.indexOf(a.toLowerCase());
       const idxB = priorityOrder.indexOf(b.toLowerCase());
