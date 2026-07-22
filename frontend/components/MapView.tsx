@@ -574,6 +574,11 @@ export default function MapView({
                     <div style="font-weight: 600; color: #525252; margin-bottom: 4px;">
                       Blok: ${blockCode}
                     </div>
+                    ${p.keterangan && p.keterangan !== 'null' ? `
+                    <div style="font-size: 10px; font-weight: 600; color: #393939; margin-bottom: 4px;">
+                      Ket: <span style="color: var(--cds-primary); font-weight: 700;">${p.keterangan}</span>
+                    </div>
+                    ` : ''}
                     ${region ? `<div style="font-size: 10px; color: #8d8d8d; border-top: 1px solid #e0e0e0; padding-top: 3px; margin-top: 3px;">${region}</div>` : ''}
                   </div>
                 `;

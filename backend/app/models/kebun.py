@@ -38,6 +38,7 @@ class BlokKebun(Base):
     alas_hak = Column(Text)
     kat_als_hk = Column(Text)
     status_kpm = Column(Text)
+    keterangan = Column(Text)
     # Geometri spasial
     geom = Column(Geometry("MULTIPOLYGON", srid=4326, spatial_index=True), nullable=False)
     # Metadata

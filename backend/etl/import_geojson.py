@@ -56,6 +56,7 @@ PROP_MAP = {
     "Alas_Hak": "alas_hak",
     "Kat_Als_Hk": "kat_als_hk",
     "Status_Kpm": "status_kpm",
+    "Keterangan": "keterangan",
 }
 
 DB_COLUMNS = list(PROP_MAP.values()) + ["geom", "source_file"]

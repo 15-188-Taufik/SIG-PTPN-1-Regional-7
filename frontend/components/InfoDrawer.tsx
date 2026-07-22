@@ -292,6 +292,12 @@ export default function InfoDrawer({ feature, kebunName, geojsonData, onClose }:
                   <td style={{ fontWeight: '600', background: '#f4f4f4' }}>Kec. & Kab.</td>
                   <td colSpan={3}>{[p.kecamatan, p.kabupaten].filter(Boolean).join(', ') || '-'}</td>
                 </tr>
+                {p.keterangan && p.keterangan !== 'null' && (
+                  <tr>
+                    <td style={{ fontWeight: '600', background: '#f4f4f4' }}>Keterangan</td>
+                    <td colSpan={3}>{p.keterangan}</td>
+                  </tr>
+                )}
               </tbody>
             </table>
           </div>
