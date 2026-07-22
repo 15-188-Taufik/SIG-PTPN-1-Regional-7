@@ -175,6 +175,12 @@ function getFeatureColor(
 ): string {
   const p = feature.properties;
 
+  // Global override: All features with status 'Okupasi' are colored Red
+  const statusVal = (p.status || '').toString().trim().toLowerCase();
+  if (statusVal === 'okupasi') {
+    return '#EF4444'; // Bright Red (Carbon support error red)
+  }
+
   if (viewMode === 'default') {
     if (detailLevel === 'kebun') {
       return getKebunColor(p.kebun);
@@ -1116,22 +1122,33 @@ export default function MapView({
         </div>
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-          {viewMode === 'default' && detailLevel === 'kebun' &&
-            Object.entries(KEBUN_COLORS).map(([name, color]) => (
-              <div key={name} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          {viewMode === 'default' && detailLevel === 'kebun' && (
+            <>
+              {Object.entries(KEBUN_COLORS).map(([name, color]) => (
+                <div key={name} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <div
+                    style={{ width: '10px', height: '10px', borderRadius: '0px', background: color, cursor: 'help' }}
+                    title={`Warna: ${getColorName(color)}`}
+                  />
+                  <span style={{ color: 'var(--cds-text-secondary)' }}>Kebun {getKebunDisplayName(name)}</span>
+                </div>
+              ))}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', borderTop: '1px solid #e0e0e0', paddingTop: '6px', marginTop: '4px' }}>
                 <div
-                  style={{ width: '10px', height: '10px', borderRadius: '0px', background: color, cursor: 'help' }}
-                  title={`Warna: ${getColorName(color)}`}
+                  style={{ width: '10px', height: '10px', borderRadius: '0px', background: '#EF4444', cursor: 'help' }}
+                  title="Warna: Merah"
                 />
-                <span style={{ color: 'var(--cds-text-secondary)' }}>Kebun {getKebunDisplayName(name)}</span>
+                <span style={{ color: 'var(--cds-text-secondary)' }}>Status Okupasi (Merah)</span>
               </div>
-            ))}
+            </>
+          )}
 
           {viewMode === 'default' && detailLevel !== 'kebun' && [
             { label: 'Warna 1 (Biru Carbon)', color: '#0F62FE' },
             { label: 'Warna 2 (Hijau Carbon)', color: '#24A148' },
             { label: 'Warna 3 (Magenta Carbon)', color: '#EE5396' },
             { label: 'Warna 4 (Amber Carbon)', color: '#F5A623' },
+            { label: 'Status Okupasi (Merah)', color: '#EF4444' },
           ].map((item, idx) => (
             <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
               <div
