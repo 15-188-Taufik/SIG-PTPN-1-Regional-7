@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { StatsResponse, GeoJSONFeature, FeatureCollection } from '@/types/kebun';
 import { ViewMode } from './MapView';
 
@@ -73,6 +73,35 @@ export default function SidePanel({
   onToggleCollapse,
 }: SidePanelProps) {
   const [activeTab, setActiveTab] = useState<'filter' | 'alerts' | 'upload'>('filter');
+  const [width, setWidth] = useState(300);
+  const [isResizing, setIsResizing] = useState(false);
+
+  const handleMouseDown = useCallback((e: React.MouseEvent) => {
+    e.preventDefault();
+    setIsResizing(true);
+  }, []);
+
+  useEffect(() => {
+    if (!isResizing) return;
+
+    const handleMouseMove = (e: MouseEvent) => {
+      // Constrain width between 240px and 600px
+      const newWidth = Math.max(240, Math.min(600, e.clientX));
+      setWidth(newWidth);
+    };
+
+    const handleMouseUp = () => {
+      setIsResizing(false);
+    };
+
+    document.addEventListener('mousemove', handleMouseMove);
+    document.addEventListener('mouseup', handleMouseUp);
+    return () => {
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+    };
+  }, [isResizing]);
+
   const [searchQuery, setSearchQuery] = useState('');
   const [isSearchFocused, setIsSearchFocused] = useState(false);
   const [expandedKebunAlerts, setExpandedKebunAlerts] = useState<Record<string, boolean>>({});
@@ -165,8 +194,9 @@ export default function SidePanel({
   return (
     <div
       style={{
-        width: collapsed ? '48px' : '300px',
-        transition: 'width 0.15s cubic-bezier(0.2, 0, 0.38, 0.9)',
+        position: 'relative',
+        width: collapsed ? '48px' : `${width}px`,
+        transition: isResizing ? 'none' : 'width 0.15s cubic-bezier(0.2, 0, 0.38, 0.9)',
         overflow: 'hidden',
         background: '#ffffff',
         borderRight: '1px solid var(--cds-border)',
@@ -618,24 +648,7 @@ export default function SidePanel({
 
 
 
-                {/* Komoditi breakdown */}
-                {stats && stats.per_komoditi.length > 0 && (
-                  <div>
-                    <div style={sectionLabel}>Distribusi Komoditi</div>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                      {stats.per_komoditi.map((k) => (
-                        <div key={k.komoditi} style={komoditiRowStyle}>
-                          <span style={{ fontSize: '12px', color: 'var(--cds-text-secondary)', fontWeight: '500' }}>
-                            {k.komoditi}
-                          </span>
-                          <span style={{ fontSize: '12px', color: 'var(--cds-text-primary)', fontWeight: '600' }}>
-                            {k.total_luas.toLocaleString('id-ID', { maximumFractionDigits: 0 })} Ha
-                          </span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
+
               </>
             )}
 
@@ -961,6 +974,26 @@ export default function SidePanel({
             )}
           </div>
         </>
+      )}
+
+      {/* Resize Handler Handle */}
+      {!collapsed && (
+        <div
+          onMouseDown={handleMouseDown}
+          style={{
+            position: 'absolute',
+            top: 0,
+            right: 0,
+            width: '4px',
+            height: '100%',
+            cursor: 'col-resize',
+            zIndex: 100,
+            background: isResizing ? 'var(--cds-primary)' : 'transparent',
+            transition: 'background 0.2s',
+          }}
+          onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(0, 106, 78, 0.2)'; }}
+          onMouseLeave={(e) => { if (!isResizing) e.currentTarget.style.background = 'transparent'; }}
+        />
       )}
     </div>
   );

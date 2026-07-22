@@ -35,7 +35,6 @@ export default function DashboardPage() {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   
   // Looker Studio style filters
-  const [selectedCommodity, setSelectedCommodity] = useState<string>('Semua');
   const [selectedCropStatus, setSelectedCropStatus] = useState<string>('Semua');
   const [selectedYearMin, setSelectedYearMin] = useState<number>(1990);
   const [selectedYearMax, setSelectedYearMax] = useState<number>(2026);
@@ -170,16 +169,6 @@ export default function DashboardPage() {
       features = features.filter((f) => activeKebun.includes(f.properties.kebun || ''));
     }
 
-    // Filter by Commodity
-    if (selectedCommodity !== 'Semua') {
-      features = features.filter((f) => {
-        const c = (f.properties.komoditi || '').toLowerCase();
-        if (selectedCommodity === 'Karet') return c.includes('karet');
-        if (selectedCommodity === 'Tebu') return c.includes('tebu');
-        return !c.includes('karet') && !c.includes('tebu');
-      });
-    }
-
     // Filter by Crop Status
     if (selectedCropStatus !== 'Semua') {
       features = features.filter((f) => {
@@ -200,7 +189,7 @@ export default function DashboardPage() {
     });
 
     return { ...geojsonData, features };
-  }, [geojsonData, activeKebun, selectedCommodity, selectedCropStatus, selectedYearMin, selectedYearMax]);
+  }, [geojsonData, activeKebun, selectedCropStatus, selectedYearMin, selectedYearMax]);
 
   // 2. Recalculate dashboard statistics dynamically based on Looker active filters
   const computedStats = useMemo(() => {
@@ -208,15 +197,6 @@ export default function DashboardPage() {
 
     // Base filtered features before applying Kebun unit filter (for per-kebun counts)
     let baseFiltered = geojsonData.features;
-
-    if (selectedCommodity !== 'Semua') {
-      baseFiltered = baseFiltered.filter((f) => {
-        const c = (f.properties.komoditi || '').toLowerCase();
-        if (selectedCommodity === 'Karet') return c.includes('karet');
-        if (selectedCommodity === 'Tebu') return c.includes('tebu');
-        return !c.includes('karet') && !c.includes('tebu');
-      });
-    }
 
     if (selectedCropStatus !== 'Semua') {
       baseFiltered = baseFiltered.filter((f) => {
@@ -255,7 +235,7 @@ export default function DashboardPage() {
       total_luas: stat.total_luas
     }));
 
-    // Apply activeKebun filter for final overall totals and commodity distributions
+    // Apply activeKebun filter for final overall totals
     let finalFiltered = baseFiltered;
     if (activeKebun.length > 0) {
       finalFiltered = finalFiltered.filter((f) => activeKebun.includes(f.properties.kebun || ''));
@@ -264,35 +244,21 @@ export default function DashboardPage() {
     let total_blok = finalFiltered.length;
     let total_luas_gis = 0;
     let total_luas_rkap = 0;
-    const komoditiStatsMap: Record<string, { jumlah_blok: number; total_luas: number }> = {};
 
     finalFiltered.forEach((f) => {
       total_luas_gis += f.properties.l_gis || 0;
       total_luas_rkap += f.properties.l_rkap || 0;
-
-      const c = f.properties.komoditi || 'Lainnya';
-      if (!komoditiStatsMap[c]) {
-        komoditiStatsMap[c] = { jumlah_blok: 0, total_luas: 0 };
-      }
-      komoditiStatsMap[c].jumlah_blok += 1;
-      komoditiStatsMap[c].total_luas += f.properties.l_gis || 0;
     });
-
-    const per_komoditi = Object.entries(komoditiStatsMap).map(([name, stat]) => ({
-      komoditi: name,
-      jumlah_blok: stat.jumlah_blok,
-      total_luas: stat.total_luas
-    }));
 
     return {
       total_blok,
       total_luas_gis,
       total_luas_rkap,
       per_kebun,
-      per_komoditi,
+      per_komoditi: [],
       per_status: []
     } as StatsResponse;
-  }, [geojsonData, activeKebun, selectedCommodity, selectedCropStatus, selectedYearMin, selectedYearMax, kebunList]);
+  }, [geojsonData, activeKebun, selectedCropStatus, selectedYearMin, selectedYearMax, kebunList]);
 
   return (
     <div
@@ -417,8 +383,6 @@ export default function DashboardPage() {
           activeKebun={activeKebun}
           onToggleKebun={handleToggleKebun}
           onHighlightKebun={handleHighlightKebun}
-          selectedCommodity={selectedCommodity}
-          onCommodityChange={setSelectedCommodity}
           selectedCropStatus={selectedCropStatus}
           onCropStatusChange={setSelectedCropStatus}
           selectedYearMin={selectedYearMin}

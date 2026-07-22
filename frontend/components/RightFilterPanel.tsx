@@ -10,10 +10,6 @@ interface RightFilterPanelProps {
   onToggleKebun: (kebun: string) => void;
   onHighlightKebun: (kebun: string) => void;
   
-  // Looker Studio style filters
-  selectedCommodity: string;
-  onCommodityChange: (commodity: string) => void;
-  
   selectedCropStatus: string;
   onCropStatusChange: (status: string) => void;
   
@@ -38,8 +34,6 @@ export default function RightFilterPanel({
   activeKebun,
   onToggleKebun,
   onHighlightKebun,
-  selectedCommodity,
-  onCommodityChange,
   selectedCropStatus,
   onCropStatusChange,
   selectedYearMin,
@@ -128,7 +122,7 @@ export default function RightFilterPanel({
         
         {!collapsed && (
           <span style={{ fontSize: '12px', fontWeight: '700', color: 'var(--cds-primary)', fontFamily: 'inherit' }}>
-            CONTROL CENTER (LOOKER)
+            CONTROL CENTER 
           </span>
         )}
       </div>
@@ -225,34 +219,6 @@ export default function RightFilterPanel({
                 );
               })}
             </div>
-          </div>
-
-          <hr style={{ border: 'none', borderTop: '1px solid #e0e0e0', margin: 0 }} />
-
-          {/* SECTION 3: COMMODITY FILTER */}
-          <div>
-            <label style={{ display: 'block', fontSize: '11px', fontWeight: '700', color: 'var(--cds-text-secondary)', textTransform: 'uppercase', marginBottom: '8px' }}>
-              Filter Komoditi
-            </label>
-            <select
-              value={selectedCommodity}
-              onChange={(e) => onCommodityChange(e.target.value)}
-              style={{
-                width: '100%',
-                padding: '8px 12px',
-                fontSize: '12px',
-                border: '1px solid var(--cds-border)',
-                outline: 'none',
-                background: '#ffffff',
-                fontFamily: 'inherit',
-                color: 'var(--cds-text-primary)',
-              }}
-            >
-              <option value="Semua">Semua Komoditi</option>
-              <option value="Karet">Karet</option>
-              <option value="Tebu">Tebu</option>
-              <option value="Lainnya">Lainnya</option>
-            </select>
           </div>
 
           <hr style={{ border: 'none', borderTop: '1px solid #e0e0e0', margin: 0 }} />
