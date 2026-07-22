@@ -592,18 +592,25 @@ export default function SidePanel({
                 {stats && (
                   <div>
                     <div style={sectionLabel}>Ringkasan Kebun</div>
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '6px' }}>
                       <StatMini
                         label="Total Blok"
                         value={stats.total_blok.toLocaleString('id-ID')}
                         color="#006A4E"
                       />
                       <StatMini
-                        label="Luas (Ha)"
-                        value={stats.total_luas_gis.toLocaleString('id-ID', {
+                        label="Luas GIS"
+                        value={`${stats.total_luas_gis.toLocaleString('id-ID', {
                           maximumFractionDigits: 1,
-                        })}
-                        color="#1CC729"
+                        })} Ha`}
+                        color="#0F62FE"
+                      />
+                      <StatMini
+                        label="Luas RKAP"
+                        value={`${stats.total_luas_rkap.toLocaleString('id-ID', {
+                          maximumFractionDigits: 1,
+                        })} Ha`}
+                        color="#24A148"
                       />
                     </div>
                   </div>

@@ -1144,10 +1144,10 @@ export default function MapView({
           )}
 
           {viewMode === 'default' && detailLevel !== 'kebun' && [
-            { label: 'Warna 1 (Biru Carbon)', color: '#0F62FE' },
-            { label: 'Warna 2 (Hijau Carbon)', color: '#24A148' },
-            { label: 'Warna 3 (Magenta Carbon)', color: '#EE5396' },
-            { label: 'Warna 4 (Amber Carbon)', color: '#F5A623' },
+            { label: 'Warna Biru ', color: '#0F62FE' },
+            { label: 'Warna Hijau ', color: '#24A148' },
+            { label: 'Warna Magenta ', color: '#EE5396' },
+            { label: 'Warna Amber ', color: '#F5A623' },
             { label: 'Status Okupasi (Merah)', color: '#EF4444' },
           ].map((item, idx) => (
             <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
