@@ -406,17 +406,16 @@ export default function SidePanel({
                     const matches: GeoJSONFeature[] = [];
                     for (const feat of geojsonData.features) {
                       const p = feat.properties;
-                      const blockCode = (p.kode_blok || '').toString().toLowerCase();
-                      const polygonNo = (p.no_polygon || '').toString().toLowerCase();
-                      const afd = (p.afdeling || '').toString().toLowerCase();
-                      const kebunName = (p.kebun || '').toString().toLowerCase();
-                      
-                      if (
-                        blockCode.includes(q) ||
-                        polygonNo.includes(q) ||
-                        afd.includes(q) ||
-                        (q.length > 2 && kebunName.includes(q))
-                      ) {
+                      let isMatch = false;
+                      for (const value of Object.values(p)) {
+                        if (value !== null && value !== undefined && value !== '') {
+                          if (value.toString().toLowerCase().includes(q)) {
+                            isMatch = true;
+                            break;
+                          }
+                        }
+                      }
+                      if (isMatch) {
                         matches.push(feat);
                         if (matches.length >= 8) break;
                       }
@@ -502,6 +501,16 @@ export default function SidePanel({
                                 <div style={{ color: '#525252' }}>
                                   Kebun {displayName} &middot; {afdName}
                                 </div>
+                                {p.nomor_peta && (
+                                  <div style={{ color: '#6f6f6f', fontSize: '9px', marginTop: '2px' }}>
+                                    No. Peta: {p.nomor_peta}
+                                  </div>
+                                )}
+                                {p.keterangan && p.keterangan !== 'null' && (
+                                  <div style={{ color: '#8d8d8d', fontSize: '9px', fontStyle: 'italic', marginTop: '1px' }}>
+                                    Ket: {p.keterangan}
+                                  </div>
+                                )}
                               </div>
                             );
                           })}
