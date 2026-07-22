@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, Float, Text, TIMESTAMP, Date, ForeignKey
+from sqlalchemy import Column, Integer, Float, Text, TIMESTAMP, Date, ForeignKey, JSON
 from sqlalchemy.sql import func
 from geoalchemy2 import Geometry
 from app.database import Base
@@ -40,6 +40,7 @@ class BlokKebun(Base):
     status_kpm = Column(Text)
     keterangan = Column(Text)
     nomor_peta = Column(Text)
+    properties = Column(JSON)
     # Geometri spasial
     geom = Column(Geometry("MULTIPOLYGON", srid=4326, spatial_index=True), nullable=False)
     # Metadata

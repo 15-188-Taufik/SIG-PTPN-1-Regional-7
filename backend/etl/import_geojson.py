@@ -61,7 +61,7 @@ PROP_MAP = {
     "Nomor_Peta": "nomor_peta",
 }
 
-DB_COLUMNS = list(PROP_MAP.values()) + ["geom", "source_file"]
+DB_COLUMNS = list(PROP_MAP.values()) + ["properties", "geom", "source_file"]
 
 
 def safe_float(val):
@@ -164,7 +164,8 @@ def process_feature(feature: dict, source_file: str) -> tuple | None:
 
         row.append(val)
 
-    # Tambah geometri sebagai string GeoJSON untuk ST_GeomFromGeoJSON
+    # Tambah properties sebagai string JSON, dan geometri sebagai string GeoJSON
+    row.append(json.dumps(props))
     row.append(geom_json_str)
     row.append(source_file)
 

@@ -44,12 +44,12 @@ CREATE TABLE blok_kebun (
     status_kpm    TEXT,
     keterangan    TEXT,
     nomor_peta    TEXT,
+    properties    JSONB,
     -- Geometri spasial (WGS84)
     geom          GEOMETRY(MultiPolygon, 4326) NOT NULL,
     -- Metadata import
     source_file   TEXT,
-    imported_at   TIMESTAMPTZ DEFAULT NOW(),
-    CONSTRAINT uq_kebun_no_polygon UNIQUE (kebun, no_polygon)
+    imported_at   TIMESTAMPTZ DEFAULT NOW()
 );
 
 -- 4. Indeks spasial (WAJIB untuk performa kueri geospasial)
