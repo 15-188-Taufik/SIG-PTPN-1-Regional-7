@@ -11,6 +11,8 @@ from app.core.deps import get_current_user
 
 router = APIRouter(prefix="/kebun", tags=["Kebun"])
 
+_db_geojson_cache = None
+
 
 class GeoJSONFallback:
     _features: List[Dict[str, Any]] = []
@@ -332,9 +334,16 @@ def get_all_kebun(
     db: Session = Depends(get_db),
     _user: dict = Depends(get_current_user),
 ):
+    global _db_geojson_cache
+
     if is_mock or db is None:
         features = GeoJSONFallback.get_features(kebun, komoditi, status)
         return {"type": "FeatureCollection", "features": features, "total": len(features)}
+
+    # If no filter is active, return from cache if populated
+    if not kebun and not komoditi and not status:
+        if _db_geojson_cache is not None:
+            return _db_geojson_cache
 
     q = db.query(BlokKebun, func.ST_AsGeoJSON(BlokKebun.geom).label("geom_json"))
 
@@ -347,7 +356,13 @@ def get_all_kebun(
 
     rows = q.all()
     features = [_blok_to_feature(row.BlokKebun, row.geom_json) for row in rows]
-    return {"type": "FeatureCollection", "features": features, "total": len(features)}
+    response_data = {"type": "FeatureCollection", "features": features, "total": len(features)}
+
+    # Cache full query response
+    if not kebun and not komoditi and not status:
+        _db_geojson_cache = response_data
+
+    return response_data
 
 
 @router.get("/stats", summary="Statistik agregat kebun (luas, jumlah blok)")
@@ -721,6 +736,10 @@ async def upload_geojson(
                     db.add(new_blok)
                     imported_count += 1
             db.commit()
+            
+            # Clear backend GeoJSON cache after database modifications
+            global _db_geojson_cache
+            _db_geojson_cache = None
         except Exception as e:
             db.rollback()
             raise HTTPException(status_code=500, detail=f"Database error saat mengimpor data kebun: {e}")

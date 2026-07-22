@@ -25,11 +25,51 @@ const STATUS_LABELS: Record<string, string> = {
 };
 
 export default function InfoDrawer({ feature, kebunName, geojsonData, onClose }: InfoDrawerProps) {
+  const [height, setHeight] = useState(380); // Default bottom drawer height (380px)
   const [history, setHistory] = useState<{
     pemeliharaan: any[];
     pemupukan: any[];
   } | null>(null);
   const [loadingHistory, setLoadingHistory] = useState(false);
+
+  const handleMouseDown = (e: React.MouseEvent) => {
+    e.preventDefault();
+    const startY = e.clientY;
+    const startHeight = height;
+
+    const handleMouseMove = (moveEvent: MouseEvent) => {
+      const deltaY = startY - moveEvent.clientY;
+      const newHeight = Math.max(180, Math.min(window.innerHeight - 80, startHeight + deltaY));
+      setHeight(newHeight);
+    };
+
+    const handleMouseUp = () => {
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+    };
+
+    document.addEventListener('mousemove', handleMouseMove);
+    document.addEventListener('mouseup', handleMouseUp);
+  };
+
+  const handleTouchStart = (e: React.TouchEvent) => {
+    const startY = e.touches[0].clientY;
+    const startHeight = height;
+
+    const handleTouchMove = (moveEvent: TouchEvent) => {
+      const deltaY = startY - moveEvent.touches[0].clientY;
+      const newHeight = Math.max(180, Math.min(window.innerHeight - 80, startHeight + deltaY));
+      setHeight(newHeight);
+    };
+
+    const handleTouchEnd = () => {
+      document.removeEventListener('touchmove', handleTouchMove);
+      document.removeEventListener('touchend', handleTouchEnd);
+    };
+
+    document.addEventListener('touchmove', handleTouchMove, { passive: true });
+    document.addEventListener('touchend', handleTouchEnd);
+  };
 
   useEffect(() => {
     if (feature && feature.properties && feature.properties.id) {
@@ -130,18 +170,7 @@ export default function InfoDrawer({ feature, kebunName, geojsonData, onClose }:
 
   return (
     <>
-      {/* Carbon Table Backdrop */}
-      <div
-        onClick={onClose}
-        style={{
-          position: 'fixed',
-          inset: 0,
-          zIndex: 1999,
-          background: 'rgba(22, 22, 22, 0.3)',
-        }}
-      />
-
-      {/* Drawer Panel (IBM Carbon style: flat white panel, sharp edges, top border accent) */}
+      {/* Drawer Panel (IBM Carbon style: flat white panel, sharp edges, top border accent, resizable height) */}
       <div
         className="animate-slide-up"
         style={{
@@ -149,17 +178,51 @@ export default function InfoDrawer({ feature, kebunName, geojsonData, onClose }:
           bottom: 0,
           left: 0,
           right: 0,
+          height: `${height}px`,
           zIndex: 2000,
           background: '#ffffff',
           borderTop: '3px solid var(--cds-primary)',
-          boxShadow: '0 -4px 12px rgba(0, 0, 0, 0.08)',
-          padding: '24px',
-          maxHeight: '60vh',
-          overflowY: 'auto',
+          boxShadow: '0 -4px 16px rgba(0, 0, 0, 0.12)',
+          padding: '28px 24px 20px 24px', // padding adjusted for drag handle
+          display: 'flex',
+          flexDirection: 'column',
+          overflow: 'hidden',
           fontFamily: "'IBM Plex Sans', sans-serif",
         }}
       >
-        {/* Drawer Header */}
+        {/* Drag Handle for Resizing */}
+        <div
+          onMouseDown={handleMouseDown}
+          onTouchStart={handleTouchStart}
+          style={{
+            width: '100%',
+            height: '14px',
+            cursor: 'ns-resize',
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            right: 0,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            background: '#f4f4f4',
+            borderBottom: '1px solid #e0e0e0',
+            zIndex: 10,
+          }}
+        >
+          <div
+            style={{
+              width: '48px',
+              height: '4px',
+              borderRadius: '2px',
+              background: '#8d8d8d',
+            }}
+          />
+        </div>
+
+        {/* Scrollable Content Wrapper */}
+        <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column' }}>
+          {/* Drawer Header */}
         <div
           style={{
             display: 'flex',
@@ -525,6 +588,7 @@ export default function InfoDrawer({ feature, kebunName, geojsonData, onClose }:
           </div>
         )}
 
+        </div>
       </div>
     </>
   );
