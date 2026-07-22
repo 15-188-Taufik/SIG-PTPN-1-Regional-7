@@ -34,9 +34,9 @@ api.interceptors.response.use(
 );
 
 // Persistent browser cache keys
-const CACHE_GEOJSON_KEY = 'sig_ptpn_geojson_v1';
-const CACHE_STATS_KEY = 'sig_ptpn_stats_v1';
-const CACHE_KEBUN_LIST_KEY = 'sig_ptpn_kebun_list_v1';
+const CACHE_GEOJSON_KEY = 'sig_ptpn_geojson_v2';
+const CACHE_STATS_KEY = 'sig_ptpn_stats_v2';
+const CACHE_KEBUN_LIST_KEY = 'sig_ptpn_kebun_list_v2';
 
 // In-memory cache variables to eliminate re-fetching latency when switching tabs
 let cachedGeoJSON: FeatureCollection | null = null;
