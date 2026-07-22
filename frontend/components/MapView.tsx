@@ -625,16 +625,23 @@ export default function MapView({
           layerGroup = L.layerGroup([blocksLayer, outlinesLayerInstance]).addTo(currentMap);
         } 
         else if (effectiveDetailLevel === 'afdeling') {
-          // Group features by kebun AND afdeling AND status
-          const afdGroups: Record<string, { feats: any[]; kebun: string; afdeling: string; status: string }> = {};
+          // Group features by kebun AND afdeling AND nomor_peta
+          const afdGroups: Record<string, { feats: any[]; kebun: string; afdeling: string; nomor_peta: string; status: string; keterangan: string }> = {};
           filteredFeatures.forEach((feat) => {
             const p = feat.properties;
             const kebunVal = p.kebun || 'Unknown';
             const afdVal = p.afdeling || 'Unknown';
-            const statusVal = p.status || 'Unknown';
-            const key = `${kebunVal}|||${afdVal}|||${statusVal}`;
+            const noPetaVal = p.nomor_peta || p.no_polygon || 'Unknown';
+            const key = `${kebunVal}|||${afdVal}|||${noPetaVal}`;
             if (!afdGroups[key]) {
-              afdGroups[key] = { feats: [], kebun: kebunVal, afdeling: afdVal, status: statusVal };
+              afdGroups[key] = {
+                feats: [],
+                kebun: kebunVal,
+                afdeling: afdVal,
+                nomor_peta: noPetaVal,
+                status: p.status || '-',
+                keterangan: p.keterangan || '-'
+              };
             }
             afdGroups[key].feats.push(feat);
           });
@@ -669,7 +676,9 @@ export default function MapView({
                 dissolved.properties = {
                   kebun: group.kebun,
                   afdeling: group.afdeling,
+                  nomor_peta: group.nomor_peta,
                   status: group.status,
+                  keterangan: group.keterangan,
                   l_gis,
                   l_rkap,
                   populasi,
@@ -711,18 +720,23 @@ export default function MapView({
                 const tooltipHtml = `
                   <div style="font-family: 'IBM Plex Sans', sans-serif; padding: 6px 10px; font-size: 11px; line-height: 1.4; color: #161616;">
                     <div style="font-weight: 700; color: var(--cds-primary); margin-bottom: 2px;">
-                      Kebun ${kebunName}
+                      Kebun ${kebunName} &middot; ${afdelingName}
                     </div>
                     <div style="font-weight: 600; color: #525252; margin-bottom: 4px;">
-                      ${afdelingName}
+                      No. Peta: ${p.nomor_peta || p.no_polygon || '-'}
                     </div>
-                    ${p.status ? `
-                    <div style="font-size: 10px; font-weight: 600; color: #393939; margin-bottom: 4px;">
+                    ${p.status && p.status !== 'Unknown' && p.status !== '-' ? `
+                    <div style="font-size: 10px; font-weight: 600; color: #393939; margin-bottom: 2px;">
                       Status: <span style="color: var(--cds-primary); font-weight: 700;">${p.status}</span>
                     </div>
                     ` : ''}
+                    ${p.keterangan && p.keterangan !== 'null' && p.keterangan !== '-' ? `
+                    <div style="font-size: 10px; font-weight: 600; color: #393939; margin-bottom: 4px;">
+                      Ket: <span style="color: var(--cds-primary); font-weight: 700;">${p.keterangan}</span>
+                    </div>
+                    ` : ''}
                     <div style="font-size: 10px; color: #8d8d8d; border-top: 1px solid #e0e0e0; padding-top: 3px; margin-top: 3px;">
-                      Total Luas: ${p.l_gis ? p.l_gis.toLocaleString('id-ID', { maximumFractionDigits: 2 }) : 0} Ha
+                      Luas: ${p.l_gis ? p.l_gis.toLocaleString('id-ID', { maximumFractionDigits: 2 }) : 0} Ha
                     </div>
                   </div>
                 `;

@@ -138,6 +138,7 @@ class GeoJSONFallback:
                         "alas_hak": props.get("Alas_Hak") or props.get("alas_hak"),
                         "status_kpm": props.get("Status_Kpm") or props.get("status_kpm"),
                         "keterangan": props.get("Keterangan") or props.get("keterangan"),
+                        "nomor_peta": props.get("Nomor_Peta") or props.get("nomor_peta"),
                     }
                     
                     original_features.append({
@@ -318,6 +319,7 @@ def _blok_to_feature(blok: BlokKebun, geom_json: str) -> dict:
             "alas_hak": blok.alas_hak,
             "status_kpm": blok.status_kpm,
             "keterangan": blok.keterangan,
+            "nomor_peta": blok.nomor_peta,
         },
     }
 
@@ -697,6 +699,7 @@ async def upload_geojson(
                     "alas_hak": props.get("Alas_Hak") or props.get("alas_hak"),
                     "status_kpm": props.get("Status_Kpm") or props.get("status_kpm"),
                     "keterangan": props.get("Keterangan") or props.get("keterangan"),
+                    "nomor_peta": props.get("Nomor_Peta") or props.get("nomor_peta"),
                 }
 
                 if existing:

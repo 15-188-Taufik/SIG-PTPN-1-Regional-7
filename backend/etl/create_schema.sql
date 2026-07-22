@@ -43,6 +43,7 @@ CREATE TABLE blok_kebun (
     kat_als_hk    TEXT,
     status_kpm    TEXT,
     keterangan    TEXT,
+    nomor_peta    TEXT,
     -- Geometri spasial (WGS84)
     geom          GEOMETRY(MultiPolygon, 4326) NOT NULL,
     -- Metadata import
