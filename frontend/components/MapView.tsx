@@ -549,12 +549,9 @@ export default function MapView({
         }
 
         // Filter by active kebun
-        const filteredFeatures =
-          activeKebun.length === 0
-            ? geojsonData.features
-            : geojsonData.features.filter((f) =>
-                activeKebun.includes(f.properties.kebun || '')
-              );
+        const filteredFeatures = geojsonData.features.filter((f) =>
+          activeKebun.includes(f.properties.kebun || '')
+        );
 
         if (filteredFeatures.length === 0) {
           setIsProcessing(false);

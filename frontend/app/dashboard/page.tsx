@@ -167,9 +167,7 @@ export default function DashboardPage() {
     let features = geojsonData.features;
 
     // Filter by active Kebun
-    if (activeKebun.length > 0) {
-      features = features.filter((f) => activeKebun.includes(f.properties.kebun || ''));
-    }
+    features = features.filter((f) => activeKebun.includes(f.properties.kebun || ''));
 
     // Filter by Crop Status
     if (selectedCropStatus !== 'Semua') {
