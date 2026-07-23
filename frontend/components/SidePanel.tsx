@@ -194,7 +194,10 @@ export default function SidePanel({
   return (
     <div
       style={{
-        position: 'relative',
+        position: 'absolute',
+        top: 0,
+        left: 0,
+        bottom: 0,
         width: collapsed ? '48px' : `${width}px`,
         transition: isResizing ? 'none' : 'width 0.15s cubic-bezier(0.2, 0, 0.38, 0.9)',
         overflow: 'hidden',
@@ -204,6 +207,7 @@ export default function SidePanel({
         flexDirection: 'column',
         height: '100%',
         flexShrink: 0,
+        zIndex: 1000,
       }}
     >
       {/* Collapse Toggle Button Container */}
@@ -553,7 +557,7 @@ export default function SidePanel({
 
                 {/* Visual Detail Level Selector (Segmented Control) */}
                 <div>
-                  <div style={sectionLabel}>Detail Peta</div>
+                  <div style={sectionLabel}>Garis Tepi Berdasarkan </div>
                   <div
                     style={{
                       display: 'flex',

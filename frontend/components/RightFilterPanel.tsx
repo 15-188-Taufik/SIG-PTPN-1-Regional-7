@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import type { ViewMode } from './MapView';
 import { getKebunDisplayName } from './MapView';
 
@@ -48,6 +48,34 @@ export default function RightFilterPanel({
   onToggleCollapse,
 }: RightFilterPanelProps) {
   
+  const [width, setWidth] = useState(280);
+  const [isResizing, setIsResizing] = useState(false);
+
+  const handleMouseDown = useCallback((e: React.MouseEvent) => {
+    e.preventDefault();
+    setIsResizing(true);
+  }, []);
+
+  useEffect(() => {
+    if (!isResizing) return;
+
+    const handleMouseMove = (e: MouseEvent) => {
+      const newWidth = Math.max(240, Math.min(600, window.innerWidth - e.clientX));
+      setWidth(newWidth);
+    };
+
+    const handleMouseUp = () => {
+      setIsResizing(false);
+    };
+
+    document.addEventListener('mousemove', handleMouseMove);
+    document.addEventListener('mouseup', handleMouseUp);
+    return () => {
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+    };
+  }, [isResizing]);
+
   const years = Array.from({ length: 37 }, (_, i) => 1990 + i);
 
   function handleToggleAll() {
@@ -65,8 +93,12 @@ export default function RightFilterPanel({
   return (
     <div
       style={{
-        width: collapsed ? '48px' : '280px',
-        transition: 'width 0.15s cubic-bezier(0.2, 0, 0.38, 0.9)',
+        position: 'absolute',
+        top: 0,
+        right: 0,
+        bottom: 0,
+        width: collapsed ? '48px' : `${width}px`,
+        transition: isResizing ? 'none' : 'width 0.15s cubic-bezier(0.2, 0, 0.38, 0.9)',
         overflow: 'hidden',
         background: '#ffffff',
         borderLeft: '1px solid var(--cds-border)',
@@ -74,7 +106,7 @@ export default function RightFilterPanel({
         flexDirection: 'column',
         height: '100%',
         flexShrink: 0,
-        zIndex: 10,
+        zIndex: 1000,
       }}
     >
       {/* Header Panel */}
@@ -313,6 +345,26 @@ export default function RightFilterPanel({
           </div>
 
         </div>
+      )}
+
+      {/* Resize Handler Handle (Left edge since panel is on the right) */}
+      {!collapsed && (
+        <div
+          onMouseDown={handleMouseDown}
+          style={{
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            width: '4px',
+            height: '100%',
+            cursor: 'col-resize',
+            zIndex: 100,
+            background: isResizing ? 'var(--cds-primary)' : 'transparent',
+            transition: 'background 0.2s',
+          }}
+          onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(0, 106, 78, 0.2)'; }}
+          onMouseLeave={(e) => { if (!isResizing) e.currentTarget.style.background = 'transparent'; }}
+        />
       )}
     </div>
   );
