@@ -12,6 +12,8 @@ from app.core.deps import get_current_user
 router = APIRouter(prefix="/kebun", tags=["Kebun"])
 
 _db_geojson_cache = None
+_db_kebun_outlines_cache = None
+_db_afdeling_outlines_cache = None
 
 
 class GeoJSONFallback:
@@ -741,8 +743,10 @@ async def upload_geojson(
             db.commit()
             
             # Clear backend GeoJSON cache after database modifications
-            global _db_geojson_cache
+            global _db_geojson_cache, _db_kebun_outlines_cache, _db_afdeling_outlines_cache
             _db_geojson_cache = None
+            _db_kebun_outlines_cache = None
+            _db_afdeling_outlines_cache = None
         except Exception as e:
             db.rollback()
             raise HTTPException(status_code=500, detail=f"Database error saat mengimpor data kebun: {e}")
@@ -753,3 +757,72 @@ async def upload_geojson(
         "imported": imported_count,
         "updated": updated_count
     }
+
+
+@router.get("/outlines/kebun", summary="Ambil outline/batas luar wilayah setiap kebun")
+def get_kebun_outlines(db: Session = Depends(get_db)):
+    global _db_kebun_outlines_cache
+    if is_mock or db is None:
+        return {"type": "FeatureCollection", "features": []}
+
+    if _db_kebun_outlines_cache is not None:
+        return _db_kebun_outlines_cache
+
+    try:
+        # Group by kebun and ST_Union the geometries
+        q = db.query(
+            BlokKebun.kebun,
+            func.ST_AsGeoJSON(func.ST_Union(BlokKebun.geom)).label("geom_json")
+        ).group_by(BlokKebun.kebun)
+        rows = q.all()
+
+        features = []
+        for row in rows:
+            if row.kebun and row.geom_json:
+                features.append({
+                    "type": "Feature",
+                    "properties": {"kebun": row.kebun},
+                    "geometry": json.loads(row.geom_json)
+                })
+        response_data = {"type": "FeatureCollection", "features": features}
+        _db_kebun_outlines_cache = response_data
+        return response_data
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Database error saat menghitung outline kebun: {e}")
+
+
+@router.get("/outlines/afdeling", summary="Ambil outline/batas luar wilayah setiap afdeling")
+def get_afdeling_outlines(db: Session = Depends(get_db)):
+    global _db_afdeling_outlines_cache
+    if is_mock or db is None:
+        return {"type": "FeatureCollection", "features": []}
+
+    if _db_afdeling_outlines_cache is not None:
+        return _db_afdeling_outlines_cache
+
+    try:
+        # Group by kebun, afdeling and ST_Union the geometries
+        q = db.query(
+            BlokKebun.kebun,
+            BlokKebun.afdeling,
+            func.ST_AsGeoJSON(func.ST_Union(BlokKebun.geom)).label("geom_json")
+        ).group_by(BlokKebun.kebun, BlokKebun.afdeling)
+        rows = q.all()
+
+        features = []
+        for row in rows:
+            if row.kebun and row.afdeling and row.geom_json:
+                features.append({
+                    "type": "Feature",
+                    "properties": {
+                        "kebun": row.kebun,
+                        "afdeling": row.afdeling,
+                        "id": f"{row.kebun}|||{row.afdeling}"
+                    },
+                    "geometry": json.loads(row.geom_json)
+                })
+        response_data = {"type": "FeatureCollection", "features": features}
+        _db_afdeling_outlines_cache = response_data
+        return response_data
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Database error saat menghitung outline afdeling: {e}")

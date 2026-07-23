@@ -247,6 +247,8 @@ function getFeatureColor(
 interface MapViewProps {
   geojsonData: FeatureCollection | null;
   rawGeojsonData: FeatureCollection | null;
+  preCalculatedKebunOutlines?: FeatureCollection | null;
+  preCalculatedAfdOutlines?: FeatureCollection | null;
   onFeatureClick: (feature: GeoJSONFeature) => void;
   activeKebun: string[];
   viewMode: ViewMode;
@@ -261,6 +263,8 @@ interface MapViewProps {
 export default function MapView({
   geojsonData,
   rawGeojsonData,
+  preCalculatedKebunOutlines: propKebunOutlines,
+  preCalculatedAfdOutlines: propAfdOutlines,
   onFeatureClick,
   activeKebun,
   viewMode,
@@ -282,6 +286,9 @@ export default function MapView({
 
   // Pre-calculate Afdeling outlines once based on raw unfiltered GeoJSON to avoid heavy Turf operations during rendering
   const preCalculatedAfdOutlines = useMemo(() => {
+    if (propAfdOutlines && propAfdOutlines.features && propAfdOutlines.features.length > 0) {
+      return propAfdOutlines.features;
+    }
     if (!rawGeojsonData || !rawGeojsonData.features) return [];
     
     const afdGroups: Record<string, any[]> = {};
@@ -305,7 +312,7 @@ export default function MapView({
       }
     });
     return outlines;
-  }, [rawGeojsonData]);
+  }, [propAfdOutlines, rawGeojsonData]);
 
   // Compute spatial adjacency graph 4-coloring for Afdelings
   const fourColorAfdMap = useMemo(() => {
@@ -314,6 +321,9 @@ export default function MapView({
 
   // Pre-calculate Kebun outlines once based on raw unfiltered GeoJSON to avoid heavy Turf operations during rendering
   const preCalculatedKebunOutlines = useMemo(() => {
+    if (propKebunOutlines && propKebunOutlines.features && propKebunOutlines.features.length > 0) {
+      return propKebunOutlines.features;
+    }
     if (!rawGeojsonData || !rawGeojsonData.features) return [];
     
     const kebunGroups: Record<string, any[]> = {};
@@ -336,7 +346,7 @@ export default function MapView({
       }
     });
     return outlines;
-  }, [rawGeojsonData]);
+  }, [propKebunOutlines, rawGeojsonData]);
 
   // Toggle loading class on body when rendering map vector layers
   useEffect(() => {

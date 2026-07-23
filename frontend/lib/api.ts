@@ -42,11 +42,15 @@ const CACHE_KEBUN_LIST_KEY = 'sig_ptpn_kebun_list_v2';
 let cachedGeoJSON: FeatureCollection | null = null;
 let cachedStats: StatsResponse | null = null;
 let cachedKebunList: string[] | null = null;
+let cachedKebunOutlines: FeatureCollection | null = null;
+let cachedAfdOutlines: FeatureCollection | null = null;
 
 export function invalidateGeoJSONCache() {
   cachedGeoJSON = null;
   cachedStats = null;
   cachedKebunList = null;
+  cachedKebunOutlines = null;
+  cachedAfdOutlines = null;
   if (typeof window !== 'undefined') {
     try {
       sessionStorage.removeItem(CACHE_GEOJSON_KEY);
@@ -336,6 +340,24 @@ export async function updateProduksi(id_fakta: number, data: Partial<ProduksiIte
 
 export async function deleteProduksi(id_fakta: number): Promise<void> {
   await api.delete(`/api/kegiatan/produksi/${id_fakta}`);
+}
+
+export async function fetchKebunOutlines(forceRefresh = false): Promise<FeatureCollection> {
+  if (!forceRefresh && cachedKebunOutlines) {
+    return cachedKebunOutlines;
+  }
+  const res = await api.get('/api/kebun/outlines/kebun');
+  cachedKebunOutlines = res.data;
+  return res.data;
+}
+
+export async function fetchAfdelingOutlines(forceRefresh = false): Promise<FeatureCollection> {
+  if (!forceRefresh && cachedAfdOutlines) {
+    return cachedAfdOutlines;
+  }
+  const res = await api.get('/api/kebun/outlines/afdeling');
+  cachedAfdOutlines = res.data;
+  return res.data;
 }
 
 export default api;

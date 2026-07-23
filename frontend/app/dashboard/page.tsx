@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import dynamic from 'next/dynamic';
-import { fetchKebun, fetchStats, fetchKebunList } from '@/lib/api';
+import { fetchKebun, fetchStats, fetchKebunList, fetchKebunOutlines, fetchAfdelingOutlines } from '@/lib/api';
 import { clearToken, isAuthenticated } from '@/lib/auth';
 import { FeatureCollection, GeoJSONFeature, StatsResponse } from '@/types/kebun';
 
@@ -41,6 +41,8 @@ export default function DashboardPage() {
   const [rightSidebarCollapsed, setRightSidebarCollapsed] = useState(false);
   const [sidebarWidth, setSidebarWidth] = useState(300);
   const [rightSidebarWidth, setRightSidebarWidth] = useState(280);
+  const [kebunOutlines, setKebunOutlines] = useState<FeatureCollection | null>(null);
+  const [afdelingOutlines, setAfdelingOutlines] = useState<FeatureCollection | null>(null);
 
   const mapInstanceRef = useRef<any>(null);
 
@@ -72,15 +74,19 @@ export default function DashboardPage() {
       if (!geojsonData || forceRefresh) {
         setLoading(true);
       }
-      const [geoData, statsData, listData] = await Promise.all([
+      const [geoData, statsData, listData, kebunOutlinesData, afdelingOutlinesData] = await Promise.all([
         fetchKebun(undefined, forceRefresh),
         fetchStats(forceRefresh),
         fetchKebunList(forceRefresh),
+        fetchKebunOutlines(forceRefresh),
+        fetchAfdelingOutlines(forceRefresh),
       ]);
       const sortedList = [...listData].sort((a, b) => a.localeCompare(b));
       setGeojsonData(geoData);
       setStats(statsData);
       setKebunList(sortedList);
+      setKebunOutlines(kebunOutlinesData);
+      setAfdelingOutlines(afdelingOutlinesData);
       
       setActiveKebun((prev) => {
         if (prev.length > 0) {
@@ -358,6 +364,8 @@ export default function DashboardPage() {
             <MapView
               geojsonData={filteredGeojsonData}
               rawGeojsonData={geojsonData}
+              preCalculatedKebunOutlines={kebunOutlines}
+              preCalculatedAfdOutlines={afdelingOutlines}
               onFeatureClick={handleFeatureClick}
               activeKebun={activeKebun}
               viewMode={viewMode}
