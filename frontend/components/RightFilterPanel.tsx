@@ -142,13 +142,19 @@ export default function RightFilterPanel({
             width="12"
             height="12"
             viewBox="0 0 16 16"
-            fill="currentColor"
+            fill="none"
             style={{
               transform: collapsed ? 'rotate(180deg)' : 'none',
-              transition: 'transform 0.15s ease',
+              transition: 'transform 0.15s',
             }}
           >
-            <path d="M12 1H4a1 1 0 00-1 1v12a1 1 0 001 1h8a1 1 0 001-1V2a1 1 0 00-1-1zm-1 12H5V3h6v10zM6 5h4v1H6V5zm0 2h4v1H6V7zm0 2h3v1H6V9z" />
+            <path
+              d="M6 4L10 8L6 12"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
           </svg>
         </button>
         
@@ -355,16 +361,30 @@ export default function RightFilterPanel({
             position: 'absolute',
             top: 0,
             left: 0,
-            width: '4px',
+            width: '8px',
             height: '100%',
             cursor: 'col-resize',
             zIndex: 100,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
             background: isResizing ? 'var(--cds-primary)' : 'transparent',
             transition: 'background 0.2s',
           }}
-          onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(0, 106, 78, 0.2)'; }}
+          onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(0, 106, 78, 0.1)'; }}
           onMouseLeave={(e) => { if (!isResizing) e.currentTarget.style.background = 'transparent'; }}
-        />
+        >
+          {/* Visual Grip Indicator (Vertical Pill in the center) */}
+          <div
+            style={{
+              width: '3px',
+              height: '32px',
+              borderRadius: '1.5px',
+              background: '#8d8d8d',
+              opacity: 0.6,
+            }}
+          />
+        </div>
       )}
     </div>
   );

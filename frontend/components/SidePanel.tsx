@@ -988,16 +988,30 @@ export default function SidePanel({
             position: 'absolute',
             top: 0,
             right: 0,
-            width: '4px',
+            width: '8px',
             height: '100%',
             cursor: 'col-resize',
             zIndex: 100,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
             background: isResizing ? 'var(--cds-primary)' : 'transparent',
             transition: 'background 0.2s',
           }}
-          onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(0, 106, 78, 0.2)'; }}
+          onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(0, 106, 78, 0.1)'; }}
           onMouseLeave={(e) => { if (!isResizing) e.currentTarget.style.background = 'transparent'; }}
-        />
+        >
+          {/* Visual Grip Indicator (Vertical Pill in the center) */}
+          <div
+            style={{
+              width: '3px',
+              height: '32px',
+              borderRadius: '1.5px',
+              background: '#8d8d8d',
+              opacity: 0.6,
+            }}
+          />
+        </div>
       )}
     </div>
   );
