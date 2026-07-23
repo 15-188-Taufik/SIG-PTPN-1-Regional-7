@@ -367,6 +367,7 @@ export default function DashboardPage() {
               selectedFeature={selectedFeature}
               mapInstanceRef={mapInstanceRef}
               rightOffset={rightSidebarCollapsed ? 48 : rightSidebarWidth}
+              leftOffset={sidebarCollapsed ? 48 : sidebarWidth}
             />
           ) : (
             <CarbonLoader overlay description="Memuat Peta & Data SIG..." />

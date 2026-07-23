@@ -254,6 +254,7 @@ interface MapViewProps {
   selectedFeature?: GeoJSONFeature | null;
   mapInstanceRef?: React.MutableRefObject<LeafletMap | null>;
   rightOffset?: number;
+  leftOffset?: number;
 }
 
 export default function MapView({
@@ -266,6 +267,7 @@ export default function MapView({
   selectedFeature,
   mapInstanceRef,
   rightOffset = 280,
+  leftOffset = 300,
 }: MapViewProps) {
   const [isProcessing, setIsProcessing] = useState(true);
   const isFirstRenderRef = useRef(true);
@@ -913,9 +915,10 @@ export default function MapView({
         style={{
           position: 'absolute',
           bottom: '24px',
-          left: '16px',
+          left: `${leftOffset + 16}px`,
           zIndex: 1000,
           fontFamily: "'IBM Plex Sans', sans-serif",
+          transition: 'left 0.15s cubic-bezier(0.2, 0, 0.38, 0.9)',
         }}
       >
         {!showTypePanel ? (
