@@ -27,6 +27,7 @@ interface RightFilterPanelProps {
   
   collapsed: boolean;
   onToggleCollapse: () => void;
+  onWidthChange?: (width: number) => void;
 }
 
 export default function RightFilterPanel({
@@ -46,6 +47,7 @@ export default function RightFilterPanel({
   onShowEmptyDataChange,
   collapsed,
   onToggleCollapse,
+  onWidthChange,
 }: RightFilterPanelProps) {
   
   const [width, setWidth] = useState(280);
@@ -62,6 +64,7 @@ export default function RightFilterPanel({
     const handleMouseMove = (e: MouseEvent) => {
       const newWidth = Math.max(240, Math.min(600, window.innerWidth - e.clientX));
       setWidth(newWidth);
+      onWidthChange?.(newWidth);
     };
 
     const handleMouseUp = () => {

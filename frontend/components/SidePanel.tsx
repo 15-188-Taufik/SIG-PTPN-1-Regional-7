@@ -42,6 +42,7 @@ interface SidePanelProps {
   onDetailLevelChange: (level: 'block' | 'afdeling' | 'kebun') => void;
   collapsed: boolean;
   onToggleCollapse: () => void;
+  onWidthChange?: (width: number) => void;
 }
 
 interface AlertItem {
@@ -71,6 +72,7 @@ export default function SidePanel({
   onDetailLevelChange,
   collapsed,
   onToggleCollapse,
+  onWidthChange,
 }: SidePanelProps) {
   const [activeTab, setActiveTab] = useState<'filter' | 'alerts' | 'upload'>('filter');
   const [width, setWidth] = useState(300);
@@ -88,6 +90,7 @@ export default function SidePanel({
       // Constrain width between 240px and 600px
       const newWidth = Math.max(240, Math.min(600, e.clientX));
       setWidth(newWidth);
+      onWidthChange?.(newWidth);
     };
 
     const handleMouseUp = () => {

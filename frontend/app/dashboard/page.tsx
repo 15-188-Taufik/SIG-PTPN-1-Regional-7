@@ -39,6 +39,8 @@ export default function DashboardPage() {
   const [selectedYearMin, setSelectedYearMin] = useState<number>(1990);
   const [selectedYearMax, setSelectedYearMax] = useState<number>(2026);
   const [rightSidebarCollapsed, setRightSidebarCollapsed] = useState(false);
+  const [sidebarWidth, setSidebarWidth] = useState(300);
+  const [rightSidebarWidth, setRightSidebarWidth] = useState(280);
 
   const mapInstanceRef = useRef<any>(null);
 
@@ -303,6 +305,7 @@ export default function DashboardPage() {
           }}
           collapsed={sidebarCollapsed}
           onToggleCollapse={() => setSidebarCollapsed(!sidebarCollapsed)}
+          onWidthChange={setSidebarWidth}
         />
 
         {/* Center/Right Spacious Content View */}
@@ -363,6 +366,7 @@ export default function DashboardPage() {
               detailLevel={detailLevel}
               selectedFeature={selectedFeature}
               mapInstanceRef={mapInstanceRef}
+              rightOffset={rightSidebarCollapsed ? 48 : rightSidebarWidth}
             />
           ) : (
             <CarbonLoader overlay description="Memuat Peta & Data SIG..." />
@@ -398,6 +402,7 @@ export default function DashboardPage() {
           onShowEmptyDataChange={setShowEmptyData}
           collapsed={rightSidebarCollapsed}
           onToggleCollapse={() => setRightSidebarCollapsed(!rightSidebarCollapsed)}
+          onWidthChange={setRightSidebarWidth}
         />
       </div>
     </div>

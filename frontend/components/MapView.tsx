@@ -253,6 +253,7 @@ interface MapViewProps {
   detailLevel: 'block' | 'afdeling' | 'kebun';
   selectedFeature?: GeoJSONFeature | null;
   mapInstanceRef?: React.MutableRefObject<LeafletMap | null>;
+  rightOffset?: number;
 }
 
 export default function MapView({
@@ -264,6 +265,7 @@ export default function MapView({
   detailLevel,
   selectedFeature,
   mapInstanceRef,
+  rightOffset = 280,
 }: MapViewProps) {
   const [isProcessing, setIsProcessing] = useState(true);
   const isFirstRenderRef = useRef(true);
@@ -1092,7 +1094,7 @@ export default function MapView({
         style={{
           position: 'absolute',
           bottom: '24px',
-          right: '24px',
+          right: `${rightOffset + 24}px`,
           zIndex: 1000,
           background: 'rgba(255, 255, 255, 0.95)',
           backdropFilter: 'blur(4px)',
@@ -1104,6 +1106,7 @@ export default function MapView({
           color: 'var(--cds-text-primary)',
           boxShadow: '0 2px 6px rgba(0,0,0,0.06)',
           pointerEvents: 'auto',
+          transition: 'right 0.15s cubic-bezier(0.2, 0, 0.38, 0.9)',
         }}
       >
         <div
