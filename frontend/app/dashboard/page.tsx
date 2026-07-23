@@ -359,6 +359,7 @@ export default function DashboardPage() {
           {!loading ? (
             <MapView
               geojsonData={filteredGeojsonData}
+              rawGeojsonData={geojsonData}
               onFeatureClick={handleFeatureClick}
               activeKebun={activeKebun}
               viewMode={viewMode}

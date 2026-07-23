@@ -246,6 +246,7 @@ function getFeatureColor(
 
 interface MapViewProps {
   geojsonData: FeatureCollection | null;
+  rawGeojsonData: FeatureCollection | null;
   onFeatureClick: (feature: GeoJSONFeature) => void;
   activeKebun: string[];
   viewMode: ViewMode;
@@ -259,6 +260,7 @@ interface MapViewProps {
 
 export default function MapView({
   geojsonData,
+  rawGeojsonData,
   onFeatureClick,
   activeKebun,
   viewMode,
@@ -272,18 +274,18 @@ export default function MapView({
   const [isProcessing, setIsProcessing] = useState(true);
   const isFirstRenderRef = useRef(true);
 
-  // Compute spatial adjacency graph 4-coloring for Blocks
+  // Compute spatial adjacency graph 4-coloring for Blocks (calculated once based on raw geometry)
   const fourColorBlockMap = useMemo(() => {
-    if (!geojsonData || !geojsonData.features) return new Map<string | number, string>();
-    return computeFourColorAssignment(geojsonData.features);
-  }, [geojsonData]);
+    if (!rawGeojsonData || !rawGeojsonData.features) return new Map<string | number, string>();
+    return computeFourColorAssignment(rawGeojsonData.features);
+  }, [rawGeojsonData]);
 
-  // Pre-calculate Afdeling outlines once to avoid heavy Turf operations during rendering
+  // Pre-calculate Afdeling outlines once based on raw unfiltered GeoJSON to avoid heavy Turf operations during rendering
   const preCalculatedAfdOutlines = useMemo(() => {
-    if (!geojsonData || !geojsonData.features) return [];
+    if (!rawGeojsonData || !rawGeojsonData.features) return [];
     
     const afdGroups: Record<string, any[]> = {};
-    geojsonData.features.forEach((feat) => {
+    rawGeojsonData.features.forEach((feat) => {
       const p = feat.properties;
       const key = `${p.kebun || 'Unknown'}|||${p.afdeling || 'Unknown'}`;
       if (!afdGroups[key]) afdGroups[key] = [];
@@ -303,19 +305,19 @@ export default function MapView({
       }
     });
     return outlines;
-  }, [geojsonData]);
+  }, [rawGeojsonData]);
 
   // Compute spatial adjacency graph 4-coloring for Afdelings
   const fourColorAfdMap = useMemo(() => {
     return computeFourColorAssignment(preCalculatedAfdOutlines);
   }, [preCalculatedAfdOutlines]);
 
-  // Pre-calculate Kebun outlines once to avoid heavy Turf operations during rendering
+  // Pre-calculate Kebun outlines once based on raw unfiltered GeoJSON to avoid heavy Turf operations during rendering
   const preCalculatedKebunOutlines = useMemo(() => {
-    if (!geojsonData || !geojsonData.features) return [];
+    if (!rawGeojsonData || !rawGeojsonData.features) return [];
     
     const kebunGroups: Record<string, any[]> = {};
-    geojsonData.features.forEach((feat) => {
+    rawGeojsonData.features.forEach((feat) => {
       const k = feat.properties.kebun || 'Unknown';
       if (!kebunGroups[k]) kebunGroups[k] = [];
       kebunGroups[k].push(feat);
@@ -334,7 +336,7 @@ export default function MapView({
       }
     });
     return outlines;
-  }, [geojsonData]);
+  }, [rawGeojsonData]);
 
   // Toggle loading class on body when rendering map vector layers
   useEffect(() => {
