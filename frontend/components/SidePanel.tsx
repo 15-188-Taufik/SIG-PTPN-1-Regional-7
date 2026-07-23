@@ -626,7 +626,7 @@ export default function SidePanel({
                 {stats && (
                   <div>
                     <div style={sectionLabel}>Ringkasan Kebun</div>
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '6px' }}>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                       <StatMini
                         label="Total Blok"
                         value={stats.total_blok.toLocaleString('id-ID')}
