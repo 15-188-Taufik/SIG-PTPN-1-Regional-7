@@ -367,18 +367,18 @@ export default function DashboardPage() {
           ) : (
             <CarbonLoader overlay description="Memuat Peta & Data SIG..." />
           )}
-
-          {/* Bottom sliding InfoDrawer */}
-          <InfoDrawer
-            feature={selectedFeature}
-            kebunName={selectedKebunAnalysis}
-            geojsonData={filteredGeojsonData}
-            onClose={() => {
-              setSelectedFeature(null);
-              setSelectedKebunAnalysis(null);
-            }}
-          />
         </div>
+
+        {/* Bottom sliding InfoDrawer */}
+        <InfoDrawer
+          feature={selectedFeature}
+          kebunName={selectedKebunAnalysis}
+          geojsonData={filteredGeojsonData}
+          onClose={() => {
+            setSelectedFeature(null);
+            setSelectedKebunAnalysis(null);
+          }}
+        />
 
         {/* Right Docked Filter Panel (Looker Center) */}
         <RightFilterPanel
