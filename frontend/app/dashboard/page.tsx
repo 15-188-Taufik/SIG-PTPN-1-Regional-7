@@ -14,8 +14,9 @@ import type { ViewMode } from '@/components/MapView';
 import CarbonLoader from '@/components/CarbonLoader';
 import HeaderNav from '@/components/HeaderNav';
 
-// Dynamically import Leaflet map (client-side only, no SSR)
+// Dynamically import map views (client-side only, no SSR)
 const MapView = dynamic(() => import('@/components/MapView'), { ssr: false });
+const Map3DView = dynamic(() => import('@/components/Map3DView'), { ssr: false });
 
 export default function DashboardPage() {
   const router = useRouter();
@@ -43,6 +44,8 @@ export default function DashboardPage() {
   const [rightSidebarWidth, setRightSidebarWidth] = useState(280);
   const [kebunOutlines, setKebunOutlines] = useState<FeatureCollection | null>(null);
   const [afdelingOutlines, setAfdelingOutlines] = useState<FeatureCollection | null>(null);
+  const [is3DMode, setIs3DMode] = useState(false);
+  const [zoomRequest, setZoomRequest] = useState<{ kebun: string; timestamp: number } | null>(null);
 
   const mapInstanceRef = useRef<any>(null);
 
@@ -115,24 +118,29 @@ export default function DashboardPage() {
   }, []);
 
   const handleHighlightKebun = useCallback((kebun: string) => {
-    if (!mapInstanceRef.current || !geojsonData) return;
-    const kebunFeatures = geojsonData.features.filter(
-      (f) => f.properties.kebun && f.properties.kebun.toLowerCase() === kebun.toLowerCase()
-    );
-    if (kebunFeatures.length > 0) {
-      const L = require('leaflet');
-      try {
-        const tempLayer = L.geoJSON({ type: 'FeatureCollection', features: kebunFeatures });
-        const bounds = tempLayer.getBounds();
-        if (bounds.isValid()) {
-          mapInstanceRef.current.flyToBounds(bounds, { 
-            padding: [60, 60],
-            animate: true,
-            duration: 1.5
-          });
+    // Set zoom request for 3D map
+    setZoomRequest({ kebun, timestamp: Date.now() });
+
+    // 2D Leaflet flyTo
+    if (mapInstanceRef.current && geojsonData) {
+      const kebunFeatures = geojsonData.features.filter(
+        (f) => f.properties.kebun && f.properties.kebun.toLowerCase() === kebun.toLowerCase()
+      );
+      if (kebunFeatures.length > 0) {
+        const L = require('leaflet');
+        try {
+          const tempLayer = L.geoJSON({ type: 'FeatureCollection', features: kebunFeatures });
+          const bounds = tempLayer.getBounds();
+          if (bounds.isValid()) {
+            mapInstanceRef.current.flyToBounds(bounds, { 
+              padding: [60, 60],
+              animate: true,
+              duration: 1.5
+            });
+          }
+        } catch (err) {
+          console.error('Error fitting bounds for kebun:', err);
         }
-      } catch (err) {
-        console.error('Error fitting bounds for kebun:', err);
       }
     }
   }, [geojsonData]);
@@ -361,21 +369,37 @@ export default function DashboardPage() {
 
           {/* Map View */}
           {!loading ? (
-            <MapView
-              geojsonData={filteredGeojsonData}
-              rawGeojsonData={geojsonData}
-              preCalculatedKebunOutlines={kebunOutlines}
-              preCalculatedAfdOutlines={afdelingOutlines}
-              onFeatureClick={handleFeatureClick}
-              activeKebun={activeKebun}
-              viewMode={viewMode}
-              showEmptyData={showEmptyData}
-              detailLevel={detailLevel}
-              selectedFeature={selectedFeature}
-              mapInstanceRef={mapInstanceRef}
-              rightOffset={rightSidebarCollapsed ? 48 : rightSidebarWidth}
-              leftOffset={sidebarCollapsed ? 48 : sidebarWidth}
-            />
+            is3DMode ? (
+              <Map3DView
+                key="map-3d"
+                geojsonData={filteredGeojsonData}
+                onFeatureClick={handleFeatureClick}
+                activeKebun={activeKebun}
+                viewMode={viewMode}
+                showEmptyData={showEmptyData}
+                selectedFeature={selectedFeature}
+                rightOffset={rightSidebarCollapsed ? 48 : rightSidebarWidth}
+                leftOffset={sidebarCollapsed ? 48 : sidebarWidth}
+                zoomRequest={zoomRequest}
+              />
+            ) : (
+              <MapView
+                key="map-2d"
+                geojsonData={filteredGeojsonData}
+                rawGeojsonData={geojsonData}
+                preCalculatedKebunOutlines={kebunOutlines}
+                preCalculatedAfdOutlines={afdelingOutlines}
+                onFeatureClick={handleFeatureClick}
+                activeKebun={activeKebun}
+                viewMode={viewMode}
+                showEmptyData={showEmptyData}
+                detailLevel={detailLevel}
+                selectedFeature={selectedFeature}
+                mapInstanceRef={mapInstanceRef}
+                rightOffset={rightSidebarCollapsed ? 48 : rightSidebarWidth}
+                leftOffset={sidebarCollapsed ? 48 : sidebarWidth}
+              />
+            )
           ) : (
             <CarbonLoader overlay description="Memuat Peta & Data SIG..." />
           )}
@@ -411,6 +435,8 @@ export default function DashboardPage() {
           collapsed={rightSidebarCollapsed}
           onToggleCollapse={() => setRightSidebarCollapsed(!rightSidebarCollapsed)}
           onWidthChange={setRightSidebarWidth}
+          is3DMode={is3DMode}
+          onToggle3DMode={setIs3DMode}
         />
       </div>
     </div>

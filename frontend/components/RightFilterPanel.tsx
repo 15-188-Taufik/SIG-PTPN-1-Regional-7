@@ -28,6 +28,8 @@ interface RightFilterPanelProps {
   collapsed: boolean;
   onToggleCollapse: () => void;
   onWidthChange?: (width: number) => void;
+  is3DMode?: boolean;
+  onToggle3DMode?: (is3D: boolean) => void;
 }
 
 export default function RightFilterPanel({
@@ -48,6 +50,8 @@ export default function RightFilterPanel({
   collapsed,
   onToggleCollapse,
   onWidthChange,
+  is3DMode = false,
+  onToggle3DMode,
 }: RightFilterPanelProps) {
   
   const [width, setWidth] = useState(280);
@@ -195,6 +199,57 @@ export default function RightFilterPanel({
               <option value="age">Analisis Umur Tanaman (Tahun)</option>
               <option value="density">Analisis Kerapatan (Pohon/Ha)</option>
             </select>
+
+            {/* 2D/3D Switcher button group */}
+            {onToggle3DMode && (
+              <div
+                style={{
+                  display: 'flex',
+                  marginTop: '8px',
+                  background: '#f4f4f4',
+                  borderRadius: '2px',
+                  padding: '2px',
+                  border: '1px solid var(--cds-border)',
+                }}
+              >
+                <button
+                  onClick={() => onToggle3DMode(false)}
+                  style={{
+                    flex: 1,
+                    background: !is3DMode ? 'var(--cds-primary, #0F62FE)' : 'transparent',
+                    color: !is3DMode ? '#ffffff' : 'var(--cds-text-secondary)',
+                    border: 'none',
+                    fontSize: '11px',
+                    fontWeight: 600,
+                    padding: '6px 0',
+                    borderRadius: '1px',
+                    cursor: 'pointer',
+                    transition: 'all 0.15s ease',
+                    fontFamily: 'inherit',
+                  }}
+                >
+                  2D Leaflet
+                </button>
+                <button
+                  onClick={() => onToggle3DMode(true)}
+                  style={{
+                    flex: 1,
+                    background: is3DMode ? 'var(--cds-primary, #0F62FE)' : 'transparent',
+                    color: is3DMode ? '#ffffff' : 'var(--cds-text-secondary)',
+                    border: 'none',
+                    fontSize: '11px',
+                    fontWeight: 600,
+                    padding: '6px 0',
+                    borderRadius: '1px',
+                    cursor: 'pointer',
+                    transition: 'all 0.15s ease',
+                    fontFamily: 'inherit',
+                  }}
+                >
+                  3D MapLibre
+                </button>
+              </div>
+            )}
           </div>
 
           <hr style={{ border: 'none', borderTop: '1px solid #e0e0e0', margin: 0 }} />
@@ -275,7 +330,12 @@ export default function RightFilterPanel({
                         )}
                       </button>
                       <span
-                        onClick={() => onToggleKebun(kebun)}
+                        onClick={() => {
+                          if (!isActive) {
+                            onToggleKebun(kebun);
+                          }
+                          onHighlightKebun(kebun);
+                        }}
                         style={{
                           fontSize: '12px',
                           color: isActive ? 'var(--cds-text-primary)' : 'var(--cds-text-secondary)',
@@ -289,7 +349,12 @@ export default function RightFilterPanel({
                       </span>
                     </div>
                     <button
-                      onClick={() => onHighlightKebun(kebun)}
+                      onClick={() => {
+                        if (!isActive) {
+                          onToggleKebun(kebun);
+                        }
+                        onHighlightKebun(kebun);
+                      }}
                       style={{
                         background: 'none',
                         border: 'none',
