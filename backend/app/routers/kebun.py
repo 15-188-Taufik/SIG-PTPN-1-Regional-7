@@ -726,7 +726,7 @@ async def upload_geojson(
                     for k, v in fields.items():
                         setattr(existing, k, v)
                     if feat.get("geometry"):
-                        existing.geom = func.ST_SetSRID(func.ST_GeomFromGeoJSON(json.dumps(feat.get("geometry"))), 4326)
+                        existing.geom = func.ST_Multi(func.ST_Force2D(func.ST_SetSRID(func.ST_GeomFromGeoJSON(json.dumps(feat.get("geometry"))), 4326)))
                     updated_count += 1
                 else:
                     new_blok = BlokKebun(
@@ -735,7 +735,7 @@ async def upload_geojson(
                         **fields
                     )
                     if feat.get("geometry"):
-                        new_blok.geom = func.ST_SetSRID(func.ST_GeomFromGeoJSON(json.dumps(feat.get("geometry"))), 4326)
+                        new_blok.geom = func.ST_Multi(func.ST_Force2D(func.ST_SetSRID(func.ST_GeomFromGeoJSON(json.dumps(feat.get("geometry"))), 4326)))
                     else:
                         raise HTTPException(status_code=400, detail=f"Feature dengan No_Polygon {no_poly} tidak memiliki geometri spasial")
                     db.add(new_blok)

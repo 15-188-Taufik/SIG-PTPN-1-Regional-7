@@ -165,7 +165,7 @@ export default function PemeliharaanPage() {
         {/* Page Title Header */}
         <div style={styles.titleSection}>
           <div>
-            <h1 style={styles.pageTitle}>Detail Pemeliharaan Harian</h1>
+            <h1 style={styles.pageTitle}>Detail Pemeliharaan Harian (BETA)</h1>
             <p style={styles.pageSubtitle}>
               Pencatatan dan pemantauan kegiatan pemeliharaan lahan, penyiangan, dan aplikasi material per blok.
             </p>

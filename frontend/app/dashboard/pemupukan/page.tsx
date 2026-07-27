@@ -165,7 +165,7 @@ export default function PemupukanPage() {
         {/* Page Title Header */}
         <div style={styles.titleSection}>
           <div>
-            <h1 style={styles.pageTitle}>Detail Pemupukan Harian</h1>
+            <h1 style={styles.pageTitle}>Detail Pemupukan Harian (BETA)</h1>
             <p style={styles.pageSubtitle}>
               Pencatatan dan analisis dosis pupuk, jenis pupuk, cakupan hektar, dan alokasi tenaga kerja per blok.
             </p>

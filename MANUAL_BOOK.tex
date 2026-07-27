@@ -1,0 +1,546 @@
+% !TeX root = MANUAL_BOOK.tex
+\documentclass[12pt, a4paper]{article}
+
+% Pengaturan margin dan ukuran kertas standar A4 untuk tugas
+\usepackage[top=3cm, bottom=3cm, left=3cm, right=3cm]{geometry}
+
+% Package yang dibutuhkan
+\usepackage{graphicx}   % Untuk menampilkan gambar/logo
+\usepackage{longtable}  % Untuk tabel yang lebih dari 1 halaman
+\usepackage{array}      % Untuk kustomisasi lebar kolom tabel
+\usepackage[bahasai]{babel} % Untuk format bahasa Indonesia
+\usepackage{setspace}   % Untuk spasi antar baris
+\usepackage{listings}   % Untuk code blocks
+\usepackage{xcolor}     % Untuk warna code blocks
+\usepackage{hyperref}   % Untuk tautan dokumen
+\hypersetup{
+    colorlinks=true,
+    linkcolor=blue,
+    filecolor=magenta,      
+    urlcolor=cyan,
+}
+
+% Konfigurasi warna untuk code block
+\definecolor{codegreen}{rgb}{0,0.6,0}
+\definecolor{codegray}{rgb}{0.5,0.5,0.5}
+\definecolor{codepurple}{rgb}{0.58,0,0.82}
+\definecolor{backcolour}{rgb}{0.95,0.95,0.92}
+
+\lstdefinestyle{mystyle}{
+    backgroundcolor=\color{backcolour},   
+    commentstyle=\color{codegreen},
+    keywordstyle=\color{magenta},
+    numberstyle=\tiny\color{codegray},
+    stringstyle=\color{codepurple},
+    basicstyle=\ttfamily\footnotesize,
+    breakatwhitespace=false,         
+    breaklines=true,                 
+    captionpos=b,                    
+    keepspaces=true,                 
+    numbers=left,                    
+    numbersep=5pt,                  
+    showspaces=false,                
+    showstringspaces=false,
+    showtabs=false,                  
+    tabsize=2
+}
+\lstset{style=mystyle}
+
+\begin{document}
+
+% ---------------------------------------------------------
+% Halaman Sampul (Cover)
+% ---------------------------------------------------------
+\begin{titlepage}
+    \centering
+    \vspace*{1cm}
+    
+    {\Large\textbf{BUKU PANDUAN PENGGUNAAN (MANUAL BOOK) SISTEM INFORMASI GEOGRAFIS (SIG) KEBUN PTPN 1 REGIONAL 7 LAMPUNG}}
+    
+    \vspace{1.5cm}
+    
+    {\large\textbf{LAPORAN KULIAH PRAKTIK}}
+    
+    \vspace{0.5cm}
+    
+    Diajukan untuk memenuhi persyaratan Laporan Kuliah Praktik / Tugas SIG PTPN 1 Regional 7 Lampung
+    
+    \vspace{1.5cm}
+    
+    % Pastikan file itera-logo.png ada di dalam folder kerja
+    \includegraphics[width=0.3\textwidth]{itera-logo.png} 
+    
+    \vspace{2cm}
+    
+    \begin{tabular}{ll}
+        \textbf{TAUFIK HIDAYAT NST} & \quad NIM: 123140188 \\
+        \textbf{BONIFASIUS EZRA MARIANO} & \quad NIM: 123140196
+    \end{tabular}
+    
+    \vspace{2.5cm}
+    
+    \textbf{PROGRAM STUDI TEKNIK INFORMATIKA}
+    
+    \textbf{FAKULTAS TEKNOLOGI INDUSTRI}
+    
+    \textbf{INSTITUT TEKNOLOGI SUMATERA}
+    
+    \vspace{0.5cm}
+    
+    \textbf{2026}
+    
+\end{titlepage}
+
+\newpage
+\setcounter{page}{1}
+
+\tableofcontents
+\newpage
+
+\section{Pendahuluan}
+
+\subsection{Deskripsi \& Tujuan Sistem}
+Sistem Informasi Geografis (SIG) Kebun PTPN 1 Regional 7 Lampung merupakan aplikasi pemetaan berbasis spasial yang mengintegrasikan koordinat fisik kebun dengan pencatatan harian produksi, pemeliharaan, dan pemupukan. Sistem ini membantu menyederhanakan pelaporan lapangan dan visualisasi performa blok tanaman karet, kelapa sawit, atau tebu secara real-time.
+
+\subsection{Wilayah Cakupan Kerja \& Ekspansi}
+Saat ini sistem telah terisi data spasial dan transaksional untuk 5 Unit Kebun utama:
+\begin{enumerate}
+    \item \textbf{Unit Way Lima} (Di dalam sistem teridentifikasi dengan alias/nama singkat Wali)
+    \item \textbf{Unit Bergen}
+    \item \textbf{Unit Kedaton}
+    \item \textbf{Unit Tulungbuyut} (Teridentifikasi dengan nama singkat TUBU)
+    \item \textbf{Unit Way Berulu} (Teridentifikasi dengan nama singkat Wabe atau Way Belulu)
+\end{enumerate}
+
+\textbf{Skalabilitas 32 Kebun}: Walaupun saat ini cakupan data terbatas pada 5 kebun tersebut, arsitektur SIG ini mendukung ekspansi dinamis hingga mencakup seluruh +-32 kebun di bawah wilayah kerja PTPN 1 Regional 7 tanpa perlu memodifikasi kode program backend atau frontend.
+
+\subsection{Kredensial Default \& Keamanan}
+Aplikasi web SIG (baik online maupun local) dilindungi sistem autentikasi terpusat berbasis JSON Web Token (JWT).
+\begin{itemize}
+    \item \textbf{Username Default}: \texttt{ptpnr7}
+    \item \textbf{Password Default}: \texttt{lampung2026}
+\end{itemize}
+
+\textbf{Pemberitahuan Keamanan}: Demi menjaga privasi dan keamanan data perusahaan, perubahan kredensial masuk seperti username dan password harus dikoordinasikan secara langsung melalui pengembang utama sistem di nomor \texttt{089517954410} atas nama Taufik Hidayat NST.
+
+\newpage
+
+\section{Pengelompokan Peran Pengguna (User Roles)}
+Untuk memastikan pengoperasian sistem berjalan efektif, penggunaan SIG dibagi menjadi tiga peran:
+
+\subsection{User 01: Kerani Kebun}
+\begin{itemize}
+    \item \textbf{Profil}: Staf administrasi divisi/afdeling kebun di lapangan.
+    \item \textbf{Tanggung Jawab}: Menginput data harian produksi afdeling, kegiatan pemeliharaan blok, dan aplikasi pemupukan.
+    \item \textbf{Media Kerja}: Google Sheets (Spreadsheet) harian yang tersinkronisasi otomatis dengan server SIG.
+\end{itemize}
+
+\subsection{User 02: Staff TI (Administrator & Developer)}
+\begin{itemize}
+    \item \textbf{Profil}: Personel Departemen TI di Kantor Direksi/Regional.
+    \item \textbf{Tanggung Jawab}: Memelihara server API backend, melakukan deployment/pembaruan kode frontend, memperbarui data batas wilayah kebun (GeoJSON), mengelola database relasional, dan melakukan pengembangan aplikasi lokal.
+    \item \textbf{Media Kerja}: Repository GitHub, Web Dashboard Admin, Terminal CLI, dan database viewer.
+\end{itemize}
+
+\subsection{User 03: Pimpinan \& Eksekutif}
+\begin{itemize}
+    \item \textbf{Profil}: Manajer Unit, Kepala Bagian Tanaman, atau Direksi Regional.
+    \item \textbf{Tanggung Jawab}: Memantau grafik produksi harian, menganalisis produktivitas lahan, memantau kondisi tanaman tua (replanting), serta mengevaluasi peringatan dini (Alerts) untuk pengambilan keputusan strategis.
+    \item \textbf{Media Kerja}: Dashboard Web SIG Online (\href{https://sig-ptpn-1-regional-7.vercel.app/}{https://sig-ptpn-1-regional-7.vercel.app/}).
+\end{itemize}
+
+\newpage
+
+\section{Arsitektur \& Alur Data Sistem}
+
+\subsection{Teknologi Utama (Stack)}
+\begin{itemize}
+    \item \textbf{Frontend}: Next.js (React / TypeScript), Tailwind CSS, Leaflet.js (Map Library).
+    \item \textbf{Backend}: FastAPI (Python), SQLAlchemy ORM, GeoAlchemy2 (Geospatial Extension).
+    \item \textbf{Database}: PostgreSQL dengan ekstensi PostGIS untuk penyimpanan data spasial polygon.
+\end{itemize}
+
+\subsection{Alur Kerja Sinkronisasi}
+Data transaksional operasional dari lapangan yang ditulis oleh User 01 (Kerani Kebun) masuk melalui Webhook ke database relasional, yang kemudian dibaca oleh API backend untuk dirender secara visual di browser web Pimpinan (User 03) secara real-time. Peta spasial dasar dikelola langsung oleh Staff TI (User 02) dengan mengunggah berkas spasial GeoJSON terstandardisasi.
+
+\newpage
+
+\section{Panduan Operasional Per Peran Pengguna}
+
+\subsection{Panduan User 01: Kerani Kebun (Pencatatan Harian \& Sheets Sync)}
+Kerani kebun tidak perlu membuka situs web SIG untuk mengunggah laporan harian. Cukup lakukan pencatatan harian melalui file Google Sheets afdeling masing-masing:
+\begin{enumerate}
+    \item \textbf{Pengisian Baris Baru}: Setiap kali ada transaksi harian baru (Produksi, Pemeliharaan, atau Pemupukan), buka tab sheet yang sesuai. Tulis tanggal kegiatan, nama kebun, nama afdeling, dan data numerik yang diperlukan. \textbf{PENTING}: Biarkan kolom \texttt{id\_fakta} (Kolom A) kosong saat mengisi baris baru.
+    \item \textbf{Proses Sinkronisasi Otomatis}: Setelah selesai mengetik satu baris data dan memindahkan kursor (menekan Enter atau mengklik sel lain), Google Sheets akan memicu Apps Script di latar belakang. Apps Script mengirimkan baris tersebut ke server SIG online. Setelah sukses tersimpan di database server, sistem akan menuliskan ID data dari database secara otomatis ke dalam kolom \texttt{id\_fakta} di baris bersangkutan. Di pojok kanan bawah Google Sheets akan muncul notifikasi kecil berbunyi: \textit{"Berhasil sinkronisasi X data baris ke database."}
+    \item \textbf{Pengeditan Data Lama}: Jika terdapat kesalahan input data pada baris yang sudah memiliki angka \texttt{id\_fakta}, Anda cukup mengedit nilai kolom yang salah pada baris tersebut. Sistem backend secara otomatis mendeteksi keberadaan \texttt{id\_fakta} dan melakukan \textit{update} (pembaruan) data di database tanpa membuat baris ganda.
+\end{enumerate}
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=0.8\textwidth]{sheets_interface.png}
+\caption{Antarmuka Google Sheets Perekaman Harian Kerani}
+\label{fig:sheets_interface}
+\end{figure}
+
+\subsection{Panduan User 02: Staff TI (Setup Lokal \& Pemeliharaan Sistem)}
+Bagian ini memuat panduan lengkap untuk Staff TI yang akan melakukan cloning kode sumber dan menjalankan lingkungan pengembangan local (Local Development) di komputer lokal.
+
+\subsubsection{Langkah-langkah Clone Repository \& Setup Backend}
+Jalankan perintah berikut pada terminal Git Bash atau PowerShell komputer Staff TI:
+\begin{lstlisting}[language=bash]
+# 1. Clone Repository dari GitHub
+git clone https://github.com/15-188-Taufik/SIG-PTPN-1-Regional-7.git
+cd SIG-PTPN-1-Regional-7
+
+# 2. Setup Environment Backend (FastAPI)
+cd backend
+python -m venv .venv
+
+# Aktifkan virtual env di Windows:
+.venv\Scripts\Activate.ps1
+
+# Instal dependensi Python
+pip install -r requirements.txt
+\end{lstlisting}
+
+Salin berkas \texttt{.env.example} menjadi \texttt{.env} di folder \texttt{backend}:
+\begin{lstlisting}[language=bash]
+copy .env.example .env
+\end{lstlisting}
+
+Buka file \texttt{.env} menggunakan teks editor dan sesuaikan parameternya:
+\begin{lstlisting}[language=text]
+DATABASE_URL=postgresql://postgres.user:password@aws-0-ap-southeast-1.pooler.supabase.com:6543/postgres?sslmode=require
+ADMIN_USERNAME=ptpnr7
+ADMIN_PASSWORD=lampung2026
+SYNC_API_KEY=lampung2026
+SECRET_KEY=kunci-rahasia-enkripsi-jwt-anda
+\end{lstlisting}
+
+Jalankan server backend FastAPI:
+\begin{lstlisting}[language=bash]
+uvicorn app.main:app --reload
+\end{lstlisting}
+Server backend lokal akan aktif di \texttt{http://localhost:8000}. Staff TI dapat membuka dokumentasi API interaktif (Swagger UI) di \texttt{http://localhost:8000/docs}.
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=0.8\textwidth]{fastapi_swagger.png}
+\caption{Dokumentasi Endpoint Interaktif Swagger UI Backend}
+\label{fig:fastapi_swagger}
+\end{figure}
+
+\subsubsection{Langkah-langkah Menjalankan Frontend Next.js}
+Buka terminal baru dan masuk ke folder \texttt{frontend} di dalam repository:
+\begin{lstlisting}[language=bash]
+cd SIG-PTPN-1-Regional-7/frontend
+npm install
+\end{lstlisting}
+
+Buat file baru bernama \texttt{.env.local} di folder \texttt{frontend}:
+\begin{lstlisting}[language=text]
+NEXT_PUBLIC_API_URL=http://localhost:8000/api
+\end{lstlisting}
+Apabila frontend lokal ingin dihubungkan langsung dengan server API production yang berada secara online, ubah isinya menjadi:
+\texttt{NEXT\_PUBLIC\_API\_URL=https://sig-ptpn-1-regional-7.onrender.com/api}
+
+Jalankan Next.js Development Server:
+\begin{lstlisting}[language=bash]
+npm run dev
+\end{lstlisting}
+Buka browser Anda dan akses halaman \texttt{http://localhost:3000}.
+
+\subsubsection{Prosedur Pembaruan Peta Spasial (Upload GeoJSON)}
+Ketika ada penambahan area lahan baru (ekspansi ke-32 kebun), Staff TI bertanggung jawab mengunggah file polygon spasial:
+\begin{enumerate}
+    \item Siapkan berkas batas spasial berformat GeoJSON (\texttt{.geojson}) dengan proyeksi koordinat WGS 84 (SRID 4326).
+    \item Pastikan nama properti / atribut di dalam file GeoJSON memiliki field minimum seperti: \texttt{kebun}, \texttt{afdeling}, \texttt{kode\_blok}, \texttt{no\_polygon}, \texttt{komoditi}, \texttt{status}, \texttt{thn\_tanam}, \texttt{populasi}.
+    \item Buka antarmuka SIG utama, masuk ke menu \textbf{Upload} di panel kiri, pilih berkas \texttt{.geojson}, lalu klik tombol \textbf{Unggah GeoJSON}.
+    \item Sistem backend FastAPI akan melakukan parsing geometries dan memperbarui isi tabel \texttt{blok\_kebun} secara instan menggunakan mekanisme SQL UPSERT.
+\end{enumerate}
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=0.6\textwidth]{upload_geojson_ui.png}
+\caption{Antarmuka Unggah GeoJSON untuk Administrator}
+\label{fig:upload_geojson_ui}
+\end{figure}
+
+\subsubsection{Mengubah Kredensial Login Default}
+Jika manajemen meminta perubahan username/password demi keamanan:
+\begin{enumerate}
+    \item Buka file konfigurasi \texttt{.env} pada server backend (atau konfigurasi Environment Variables di platform hosting backend).
+    \item Ubah nilai \texttt{ADMIN\_USERNAME} dan \texttt{ADMIN\_PASSWORD}.
+    \item Restart aplikasi backend FastAPI. Pengguna akan secara otomatis menggunakan kredensial baru pada upaya login berikutnya.
+\end{enumerate}
+
+\subsection{Panduan User 03: Pimpinan \& Eksekutif (Monitoring \& Analisis Tematik)}
+Pimpinan dan pihak eksekutif dapat mengakses web SIG secara langsung secara online melalui link \href{https://sig-ptpn-1-regional-7.vercel.app/}{https://sig-ptpn-1-regional-7.vercel.app/}.
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=0.6\textwidth]{login_interface.png}
+\caption{Antarmuka Login Pengguna Terpusat}
+\label{fig:login_interface}
+\end{figure}
+
+\subsubsection{Menavigasi 4 Mode Tampilan Peta}
+Untuk melakukan analisis kinerja lahan, eksekutif dapat mengubah legenda dan pewarnaan peta di panel kanan (Looker Studio style filters):
+\begin{enumerate}
+    \item \textbf{Analisis Kepemilikan \& Batas (Mode Default)}: Melihat batas kepemilikan blok berdasarkan unit kebun. \textbf{Perhatian Khusus}: Jika ada area yang diwarnai \textbf{Merah Terang (\#EF4444)}, area tersebut merupakan lahan berstatus \textbf{"Okupasi"} (lahan sengketa / diserobot masyarakat). Eksekutif dapat berkoordinasi dengan bagian hukum/pertanahan.
+    \item \textbf{Analisis Produktivitas (Mode Produktivitas)}: Melihat tonase hasil panen per Hektar. Warna \textbf{Merah} ($<$15 Ton/Ha) \& \textbf{Orange} (15-49 Ton/Ha) mendeteksi blok-blok berkinerja buruk yang membutuhkan intervensi pemeliharaan atau pemupukan tambahan.
+    \item \textbf{Analisis Peremajaan Tanaman (Mode Umur Tanam)}: Warna \textbf{Merah} ($>$25 Tahun) menandakan tanaman sudah berumur tua, tidak produktif, dan memerlukan jadwal \textbf{Replanting} secepatnya. Warna \textbf{Biru Muda} menggambarkan Tanaman Belum Menghasilkan (TBM / Muda) yang membutuhkan pemantauan intensif masa pertumbuhan.
+    \item \textbf{Analisis Kerapatan Pohon (Mode Kerapatan SPH)}: Melihat parameter Stand Per Hektar (SPH). Warna \textbf{Merah} ($<$ 150 pohon/Ha) menandakan blok memiliki tingkat kejarangan pohon yang kritis. Direkomendasikan melakukan penyulaman bibit baru.
+\end{enumerate}
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=0.8\textwidth]{map_thematic_visuals.png}
+\caption{Visualisasi Peta Tematik Kebun PTPN 1 Regional 7}
+\label{fig:map_thematic_visuals}
+\end{figure}
+
+\subsubsection{Membaca Peringatan Dini (Alerts Panel)}
+Tanpa perlu mencari blok satu per satu di peta, Pimpinan dapat mengklik tab \textbf{Alerts} pada panel kiri dashboard:
+\begin{itemize}
+    \item Melihat rangkuman otomatis seluruh blok kebun yang memiliki kerapatan \textbf{SPH Kritis ($<$ 150 pohon/Ha)}.
+    \item Melihat daftar blok yang memiliki masalah lapangan aktif pada catatan \textbf{PICA} (Problem Identification \& Corrective Actions), seperti serangan hama ulat api atau kendala cuaca ekstrem.
+\end{itemize}
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=0.7\textwidth]{early_warning_panel.png}
+\caption{Panel Deteksi Dini Peringatan Kritis Kebun}
+\label{fig:early_warning_panel}
+\end{figure}
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=0.8\textwidth]{info_drawer_details.png}
+\caption{Drawer Detail Informasi Fisik dan Administrasi Blok Kebun}
+\label{fig:info_drawer_details}
+\end{figure}
+
+\newpage
+
+\section{Integrasi Google Sheets \& Google Apps Script}
+
+\subsection{Persiapan Template Kolom Lembar Kerja}
+Buat file Google Sheets baru, lalu buat 3 tab dengan nama persis berikut:
+
+\paragraph{Tab 1: produksi\_harian}
+Kolom A sampai I secara berurutan: \\
+\texttt{id\_fakta} | \texttt{tanggal} | \texttt{kebun} | \texttt{afdeling} | \texttt{target\_harian\_ton} | \texttt{produksi\_aktual\_ton} | \texttt{jumlah\_pemanen\_hk} | \texttt{curah\_hujan\_mm} | \texttt{rendemen\_persen}
+
+\paragraph{Tab 2: pemeliharaan\_harian}
+Kolom A sampai L secara berurutan: \\
+\texttt{id\_fakta} | \texttt{tanggal} | \texttt{kebun} | \texttt{afdeling} | \texttt{no\_polygon} | \texttt{kode\_blok} | \texttt{jenis\_kegiatan} | \texttt{material} | \texttt{dosis\_aplikasi} | \texttt{luas\_aplikasi} | \texttt{tenaga\_kerja} | \texttt{keterangan}
+
+\paragraph{Tab 3: pemupukan\_harian}
+Kolom A sampai K secara berurutan: \\
+\texttt{id\_fakta} | \texttt{tanggal} | \texttt{kebun} | \texttt{afdeling} | \texttt{no\_polygon} | \texttt{kode\_blok} | \texttt{jenis\_pupuk} | \texttt{jumlah\_pupuk} | \texttt{luas\_aplikasi} | \texttt{tenaga\_kerja} | \texttt{keterangan}
+
+\textbf{Aturan Penulisan Kolom A (\texttt{id\_fakta})}: Kolom \texttt{id\_fakta} wajib diletakkan di Kolom A (paling kiri) pada setiap tab. Kolom ini berfungsi sebagai ID unik dari database. Kolom ini tidak boleh diisi secara manual untuk baris baru. Sistem backend akan menuliskan ID database secara otomatis ke kolom ini setelah sinkronisasi berhasil.
+
+\subsection{Kode Google Apps Script (\texttt{sigAutoSync})}
+Pasang skrip berikut pada editor Apps Script di Google Sheets Anda:
+
+\begin{lstlisting}[language=Java]
+/**
+ * Google Apps Script - SIG PTPN Real-Time Auto-Sync (v3.1)
+ * Developer: Taufik Hidayat NST (089517954410)
+ */
+
+var API_BASE_URL = "https://sig-ptpn-1-regional-7.onrender.com/api/sync"; 
+var API_KEY = "lampung2026"; 
+
+function sigAutoSync(e) {
+  var range = e.range;
+  var sheet = range.getSheet();
+  var sheetName = sheet.getName();
+  
+  var validSheets = ["produksi_harian", "pemeliharaan_harian", "pemupukan_harian"];
+  if (validSheets.indexOf(sheetName) === -1) return;
+  
+  var startRow = range.getRow();
+  var numRows = range.getNumRows();
+  
+  var headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
+  var idColIdx = headers.indexOf("id_fakta");
+  
+  if (idColIdx === -1) {
+    sheet.insertColumnBefore(1);
+    sheet.getRange(1, 1).setValue("id_fakta");
+    headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
+    idColIdx = 0;
+  }
+  
+  var rowsToSync = [];
+  var rowIndices = [];
+  
+  var dataRange = sheet.getRange(startRow, 1, numRows, headers.length);
+  var allValues = dataRange.getValues();
+  
+  for (var i = 0; i < numRows; i++) {
+    var currentRowNum = startRow + i;
+    if (currentRowNum === 1) continue; 
+    
+    var rowValues = allValues[i];
+    var idFakta = rowValues[idColIdx];
+    
+    var rowData = {};
+    for (var j = 0; j < headers.length; j++) {
+      var headerName = headers[j].toString().trim();
+      if (headerName === "") continue;
+      
+      var cellVal = rowValues[j];
+      
+      if (cellVal instanceof Date) {
+        cellVal = Utilities.formatDate(cellVal, SpreadsheetApp.getActiveSpreadsheet().getSpreadsheetTimeZone(), "yyyy-MM-dd");
+      }
+      
+      if (cellVal === "") {
+        cellVal = null;
+      }
+      rowData[headerName] = cellVal;
+    }
+    
+    var isInsert = (idFakta === "" || idFakta === null || idFakta === undefined);
+    var isValid = true;
+    
+    if (isInsert) {
+      if (!rowData["tanggal"]) {
+        isValid = false;
+      } else if (sheetName === "produksi_harian") {
+        var hasAfd = rowData["id_afdeling"] || (rowData["kebun"] && rowData["afdeling"]);
+        if (!hasAfd) isValid = false;
+      } else if (sheetName === "pemeliharaan_harian") {
+        if (!rowData["jenis_kegiatan"]) isValid = false;
+        var hasBlok = rowData["blok_id"] || rowData["kode_blok"] || rowData["no_polygon"];
+        if (!hasBlok) isValid = false;
+      } else if (sheetName === "pemupukan_harian") {
+        if (!rowData["jenis_pupuk"] || rowData["jumlah_pupuk"] === null || rowData["jumlah_pupuk"] === undefined) isValid = false;
+        var hasBlok = rowData["blok_id"] || rowData["kode_blok"] || rowData["no_polygon"];
+        if (!hasBlok) isValid = false;
+      }
+    }
+    
+    if (isValid) {
+      rowsToSync.push(rowData);
+      rowIndices.push({
+        rowNum: currentRowNum,
+        isInsert: isInsert
+      });
+    }
+  }
+  
+  if (rowsToSync.length === 0) return;
+  syncBatchToSIG(sheet, sheetName, idColIdx, rowsToSync, rowIndices);
+}
+
+function syncBatchToSIG(sheet, sheetType, idColIdx, rowsToSync, rowIndices) {
+  var payload = {
+    "sheet_type": sheetType,
+    "rows": rowsToSync
+  };
+  
+  var options = {
+    "method": "post",
+    "contentType": "application/json",
+    "headers": {
+      "X-API-Key": API_KEY
+    },
+    "payload": JSON.stringify(payload),
+    "muteHttpExceptions": true
+  };
+  
+  try {
+    var response = UrlFetchApp.fetch(API_BASE_URL + "/webhook", options);
+    var responseCode = response.getResponseCode();
+    var responseText = response.getContentText();
+    var result = JSON.parse(responseText);
+    
+    if (responseCode === 200) {
+      var successCount = result.inserted_updated || 0;
+      var newIdsCount = 0;
+      
+      if (result.results && result.results.length === rowsToSync.length) {
+        for (var k = 0; k < result.results.length; k++) {
+          var res = result.results[k];
+          var info = rowIndices[k];
+          if (res.status === "success" && info.isInsert) {
+            sheet.getRange(info.rowNum, idColIdx + 1).setValue(res.id_fakta || res.id);
+            newIdsCount++;
+          }
+        }
+      } else if (result.row_ids && result.row_ids.length === rowsToSync.length) {
+        for (var k = 0; k < result.row_ids.length; k++) {
+          var info = rowIndices[k];
+          if (info.isInsert) {
+            sheet.getRange(info.rowNum, idColIdx + 1).setValue(result.row_ids[k]);
+            newIdsCount++;
+          }
+        }
+      }
+      
+      var msg = "Berhasil sinkronisasi " + successCount + " data baris ke database.";
+      if (newIdsCount > 0) {
+        msg += " " + newIdsCount + " ID fakta baru ditulis ke Google Sheets.";
+      }
+      SpreadsheetApp.getActiveSpreadsheet().toast(msg, "Sinkronisasi Berhasil", 4);
+    } else {
+      var errorDetail = result.detail || responseText;
+      SpreadsheetApp.getActiveSpreadsheet().toast("Gagal: " + errorDetail, "Gagal Sinkronisasi", 5);
+    }
+  } catch (error) {
+    SpreadsheetApp.getActiveSpreadsheet().toast("Koneksi gagal: " + error.toString(), "Error Koneksi", 5);
+  }
+}
+\end{lstlisting}
+
+\subsection{Pemasangan Installable Trigger \textit{onEdit}}
+\begin{enumerate}
+    \item Di Google Sheets Anda, buka menu: \textbf{Extensions} $\rightarrow$ \textbf{Apps Script}.
+    \item Hapus seluruh kode lama di dalam jendela editor, tempelkan skrip di atas, lalu tekan \textbf{Save}.
+    \item Di bilah navigasi kiri, pilih ikon jam weker (\textbf{Triggers}).
+    \item Klik \textbf{+ Add Trigger} di pojok kanan bawah dengan opsi:
+    \begin{itemize}
+        \item \textit{Choose which function to run}: \texttt{sigAutoSync}
+        \item \textit{Choose which deployment should run}: \texttt{Head}
+        \item \textit{Select event source}: \texttt{From spreadsheet}
+        \item \textit{Select event type}: \texttt{On edit}
+    \end{itemize}
+    \item Klik \textbf{Save} dan setujui verifikasi perizinan akun keamanan Google.
+\end{enumerate}
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=0.8\textwidth]{apps_script_trigger_setup.png}
+\caption{Konfigurasi Installable Trigger di Dashboard Google Apps Script}
+\label{fig:apps_script_trigger_setup}
+\end{figure}
+
+\newpage
+
+\section{Panduan Administrator (Database Schema)}
+
+\subsection{Struktur Tabel Database (PostgreSQL + PostGIS)}
+Database aplikasi menggunakan 6 tabel utama:
+\begin{itemize}
+    \item \textbf{\texttt{blok\_kebun}}: Menyimpan batas spasial geometri (\texttt{geom} bertipe MULTIPOLYGON WGS84 SRID 4326) dan properti tanaman (status, komoditi, tahun tanam).
+    \item \textbf{\texttt{dim\_unit}}: Tabel unit kebun (nama unit, komoditas, latitude, longitude).
+    \item \textbf{\texttt{dim\_afdeling}}: Tabel afdeling yang terelasi ke unit kebun induk.
+    \item \textbf{\texttt{fact\_produksi\_harian}}: Transaksi data produksi harian (aktual, target, HK pemanen, curah hujan) per afdeling.
+    \item \textbf{\texttt{fact\_pemeliharaan\_harian}}: Transaksi pemeliharaan (material, luas, dosis, tenaga kerja) per blok kebun.
+    \item \texttt{fact\_pemupukan\_harian}: Transaksi pemupukan (jenis pupuk, jumlah pupuk, luas, tenaga kerja) per blok kebun.
+\end{itemize}
+
+\subsection{Kontak Dukungan Pengembang}
+Bila terjadi kegagalan sistem, masalah jaringan, atau kebutuhan modifikasi database:
+\begin{itemize}
+    \item \textbf{Pengembang Utama}: Taufik Hidayat NST
+    \item \textbf{No. HP/WhatsApp}: \texttt{089517954410}
+    \item \textbf{Afiliasi}: Kantor Regional PTPN 1 Regional 7 Lampung.
+\end{itemize}
+
+\end{document}

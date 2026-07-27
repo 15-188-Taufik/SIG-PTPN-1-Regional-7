@@ -149,7 +149,7 @@ export default function ProduksiPage() {
         {/* Page Title Header */}
         <div style={styles.titleSection}>
           <div>
-            <h1 style={styles.pageTitle}>Detail Produksi Harian</h1>
+            <h1 style={styles.pageTitle}>Detail Produksi Harian (BETA)</h1>
             <p style={styles.pageSubtitle}>
               Pencatatan dan analisis target vs aktual hasil panen produksi harian, HK pemanen, curah hujan, dan rendemen.
             </p>
