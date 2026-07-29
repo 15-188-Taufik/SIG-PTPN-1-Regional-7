@@ -797,10 +797,12 @@ async def upload_geojson(
                     except ValueError:
                         pass
 
-                # Match on BOTH no_polygon AND kebun to prevent cross-kebun collisions
+                # Match on no_polygon, kebun AND nomor_peta to prevent overwriting different blocks sharing the same no_polygon code
+                nomor_peta_val = props.get("Nomor_Peta") or props.get("nomor_peta")
                 existing = db.query(BlokKebun).filter(
                     BlokKebun.no_polygon == no_poly,
-                    BlokKebun.kebun == kebun_name
+                    BlokKebun.kebun == kebun_name,
+                    BlokKebun.nomor_peta == nomor_peta_val
                 ).first()
                 
                 fields = {
