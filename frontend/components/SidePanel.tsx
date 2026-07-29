@@ -899,7 +899,7 @@ export default function SidePanel({
                 </div>
                 <div style={{ fontSize: '12px', color: 'var(--cds-text-secondary)', lineHeight: '1.5' }}>
                   Unggah berkas GeoJSON untuk menambahkan blok baru atau memperbarui data blok yang sudah ada. 
-                  Sistem akan mencocokkan kode polygon (`no_polygon`) untuk mencegah duplikasi data.
+                  Sistem akan mencocokkan kombinasi kode polygon (`no_polygon`), unit kebun, dan nomor peta untuk mencegah duplikasi data.
                 </div>
 
                 {/* Dropzone area */}
