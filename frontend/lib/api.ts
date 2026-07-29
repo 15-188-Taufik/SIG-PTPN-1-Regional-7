@@ -7,7 +7,7 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 const api: AxiosInstance = axios.create({
   baseURL: API_URL,
   headers: { 'Content-Type': 'application/json' },
-  timeout: 30000,
+  timeout: 90000, // 90 seconds to handle DB cold-start cache warm-up
 });
 
 // Request interceptor: attach JWT token
@@ -19,7 +19,7 @@ api.interceptors.request.use((config) => {
   return config;
 });
 
-// Response interceptor: handle 401
+// Response interceptor: handle 401 and log 404s
 api.interceptors.response.use(
   (response) => response,
   (error) => {
@@ -29,14 +29,19 @@ api.interceptors.response.use(
         window.location.href = '/login';
       }
     }
+    if (error.response?.status === 404) {
+      // Log 404 with URL for debugging
+      const url = error.config?.url || 'unknown';
+      console.warn(`[API 404] Resource not found: ${url}. Data may be stale — try refreshing the page.`);
+    }
     return Promise.reject(error);
   }
 );
 
-// Persistent browser cache keys
-const CACHE_GEOJSON_KEY = 'sig_ptpn_geojson_v2';
-const CACHE_STATS_KEY = 'sig_ptpn_stats_v2';
-const CACHE_KEBUN_LIST_KEY = 'sig_ptpn_kebun_list_v2';
+// Persistent browser cache keys - bump version to force invalidation after re-imports
+const CACHE_GEOJSON_KEY = 'sig_ptpn_geojson_v3';
+const CACHE_STATS_KEY = 'sig_ptpn_stats_v3';
+const CACHE_KEBUN_LIST_KEY = 'sig_ptpn_kebun_list_v3';
 
 // In-memory cache variables to eliminate re-fetching latency when switching tabs
 let cachedGeoJSON: FeatureCollection | null = null;
@@ -118,6 +123,54 @@ export async function fetchStats(forceRefresh = false): Promise<StatsResponse> {
   return res.data;
 }
 
+// Non-plantation entries that should be excluded from the Filter Unit Kebun list
+const EXCLUDED_FROM_KEBUN_FILTER = new Set([
+  'kso', 'infrastruktur', 'emplasemen', 'fasilitas', 'jalan', 'parit', 'embung',
+]);
+
+function isPlantationKebun(name: string): boolean {
+  if (!name) return false;
+  const lower = name.trim().toLowerCase();
+  for (const ex of EXCLUDED_FROM_KEBUN_FILTER) {
+    if (lower === ex || lower.startsWith(ex + ' ')) return false;
+  }
+  return true;
+}
+
+
+/**
+ * Normalize kebun name: ensure all plantation units have "Unit " prefix.
+ * Known aliases are mapped to canonical names. Non-plantation areas are kept as-is.
+ */
+export function normalizeKebunName(name: string | null): string {
+  if (!name) return '';
+  const lower = name.trim().toLowerCase();
+
+  // Non-plantation: skip prefix
+  for (const np of EXCLUDED_FROM_KEBUN_FILTER) {
+    if (lower === np || lower.startsWith(np + ' ')) return name.trim();
+  }
+
+  // Already has "Unit " prefix
+  if (lower.startsWith('unit ')) return name.trim();
+
+  // Known aliases
+  const ALIASES: Record<string, string> = {
+    'way berulu': 'Unit Way Berulu', 'wabe': 'Unit Way Berulu',
+    'way lima': 'Unit Way Lima', 'wali': 'Unit Way Lima',
+    'tulungbuyut': 'Unit Tulungbuyut', 'tubu': 'Unit Tulungbuyut',
+    'bergen': 'Unit Bergen',
+    'kedaton': 'Unit Kedaton',
+    'ketahun': 'Unit Ketahun',
+    'padang pelawi': 'Unit Padang Pelawi', 'pawi': 'Unit Padang Pelawi',
+  };
+  if (ALIASES[lower]) return ALIASES[lower];
+
+  // Generic: prepend "Unit "
+  const title = name.trim().replace(/\b\w/g, (c) => c.toUpperCase());
+  return `Unit ${title}`;
+}
+
 export async function fetchKebunList(forceRefresh = false): Promise<string[]> {
   if (!forceRefresh) {
     if (cachedKebunList) {
@@ -127,7 +180,12 @@ export async function fetchKebunList(forceRefresh = false): Promise<string[]> {
       try {
         const stored = sessionStorage.getItem(CACHE_KEBUN_LIST_KEY);
         if (stored) {
-          cachedKebunList = JSON.parse(stored);
+          const parsed: string[] = JSON.parse(stored);
+          // Re-normalize and filter out non-plantation entries
+          const normalized = [...new Set(
+            parsed.map(normalizeKebunName).filter(n => Boolean(n) && isPlantationKebun(n))
+          )];
+          cachedKebunList = normalized;
           return cachedKebunList!;
         }
       } catch (e) {
@@ -137,16 +195,23 @@ export async function fetchKebunList(forceRefresh = false): Promise<string[]> {
   }
 
   const res = await api.get('/api/kebun/list');
-  cachedKebunList = res.data.kebun;
+  // Normalize all names from API, exclude non-plantation entries, deduplicate
+  const normalized: string[] = [...new Set(
+    (res.data.kebun as string[])
+      .map(normalizeKebunName)
+      .filter(n => Boolean(n) && isPlantationKebun(n))
+  )];
+  cachedKebunList = normalized;
   if (typeof window !== 'undefined') {
     try {
-      sessionStorage.setItem(CACHE_KEBUN_LIST_KEY, JSON.stringify(res.data.kebun));
+      sessionStorage.setItem(CACHE_KEBUN_LIST_KEY, JSON.stringify(normalized));
     } catch (e) {
       console.warn('SessionStorage quota exceeded for kebun list cache', e);
     }
   }
-  return res.data.kebun;
+  return normalized;
 }
+
 
 export async function uploadGeoJSON(file: File): Promise<{
   status: string;

@@ -113,7 +113,20 @@ def process_feature(feature: dict, source_file: str) -> tuple | None:
             elif "wali" in sf_lower:
                 val = "Unit Way Lima"
             else:
-                val = "Unit Bergen"
+                raw_kebun = props.get("kebun") or props.get("Kebun") or props.get("KEBUN")
+                if raw_kebun:
+                    raw_kebun = str(raw_kebun).strip()
+                    if not raw_kebun.lower().startswith("unit"):
+                        val = f"Unit {raw_kebun}"
+                    else:
+                        val = raw_kebun
+                else:
+                    base_name = source_file.replace('\\', '/').split('/')[-1].rsplit('.', 1)[0].replace('_', ' ').replace('-', ' ').strip()
+                    base_name = ' '.join(w.capitalize() for w in base_name.split())
+                    if not base_name.lower().startswith("unit"):
+                        val = f"Unit {base_name}"
+                    else:
+                        val = base_name
 
         elif db_col == "afdeling":
             raw_val = props.get("SAP_Afd") or props.get("sap_afd") or props.get("SAP_AFD") or val or props.get("Afdeling") or props.get("afdeling")

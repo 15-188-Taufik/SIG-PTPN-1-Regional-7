@@ -3,9 +3,10 @@ from sqlalchemy.orm import Session
 from sqlalchemy import func
 from typing import Optional, List, Dict, Any
 import json
+import threading
 from pathlib import Path
 
-from app.database import get_db, is_mock
+from app.database import get_db, is_mock, SessionLocal
 from app.models.kebun import BlokKebun, FactPemeliharaanHarian, FactPemupukanHarian
 from app.core.deps import get_current_user
 
@@ -14,6 +15,124 @@ router = APIRouter(prefix="/kebun", tags=["Kebun"])
 _db_geojson_cache = None
 _db_kebun_outlines_cache = None
 _db_afdeling_outlines_cache = None
+
+
+def warm_cache_background():
+    """Pre-warm all DB caches on startup to eliminate cold-start latency."""
+    global _db_geojson_cache, _db_kebun_outlines_cache, _db_afdeling_outlines_cache
+    if is_mock or SessionLocal is None:
+        return
+    try:
+        db = SessionLocal()
+        print("[Cache Warm-up] Starting background cache warming...")
+
+        # 1. GeoJSON blocks
+        if _db_geojson_cache is None:
+            q = db.query(
+                BlokKebun,
+                func.ST_AsGeoJSON(func.ST_SimplifyPreserveTopology(BlokKebun.geom, 0.00005)).label("geom_json")
+            )
+            rows = q.all()
+            features = [_blok_to_feature(row.BlokKebun, row.geom_json) for row in rows]
+            _db_geojson_cache = {"type": "FeatureCollection", "features": features, "total": len(features)}
+            print(f"[Cache Warm-up] GeoJSON cache ready: {len(features)} features.")
+
+        # 2. Kebun outlines
+        if _db_kebun_outlines_cache is None:
+            q = db.query(
+                BlokKebun.kebun,
+                func.ST_AsGeoJSON(func.ST_SimplifyPreserveTopology(func.ST_Union(BlokKebun.geom), 0.0002)).label("geom_json")
+            ).group_by(BlokKebun.kebun)
+            rows = q.all()
+            features = []
+            for row in rows:
+                if row.kebun and row.geom_json:
+                    features.append({
+                        "type": "Feature",
+                        "properties": {"kebun": row.kebun},
+                        "geometry": json.loads(row.geom_json)
+                    })
+            _db_kebun_outlines_cache = {"type": "FeatureCollection", "features": features}
+            print(f"[Cache Warm-up] Kebun outlines cache ready: {len(features)} kebun.")
+
+        # 3. Afdeling outlines
+        if _db_afdeling_outlines_cache is None:
+            q = db.query(
+                BlokKebun.kebun,
+                BlokKebun.afdeling,
+                func.ST_AsGeoJSON(func.ST_SimplifyPreserveTopology(func.ST_Union(BlokKebun.geom), 0.0002)).label("geom_json")
+            ).group_by(BlokKebun.kebun, BlokKebun.afdeling)
+            rows = q.all()
+            features = []
+            for row in rows:
+                if row.kebun and row.afdeling and row.geom_json:
+                    features.append({
+                        "type": "Feature",
+                        "properties": {
+                            "kebun": row.kebun,
+                            "afdeling": row.afdeling,
+                            "id": f"{row.kebun}|||{row.afdeling}"
+                        },
+                        "geometry": json.loads(row.geom_json)
+                    })
+            _db_afdeling_outlines_cache = {"type": "FeatureCollection", "features": features}
+            print(f"[Cache Warm-up] Afdeling outlines cache ready: {len(features)} afdelings.")
+
+        db.close()
+        print("[Cache Warm-up] All caches warmed successfully!")
+    except Exception as e:
+        print(f"[Cache Warm-up] Warning: Background cache warm-up failed: {e}")
+
+
+
+def _normalize_kebun_name(props: dict, filename: str = "") -> str:
+    """
+    Normalize kebun name from GeoJSON properties.
+    Priority: Kebun field -> SAP_Kebun field -> filename fallback.
+    Always prepends 'Unit ' if not already present.
+    Non-plantation areas (KSO, Infrastruktur, etc.) are kept as-is.
+    """
+    raw = (
+        props.get("Kebun") or props.get("kebun") or props.get("KEBUN")
+        or props.get("SAP_Kebun") or props.get("sap_kebun") or ""
+    )
+    raw = str(raw).strip()
+
+    if not raw or raw.lower() in ("", "none", "null"):
+        # Fall back to filename
+        base = filename.replace("\\", "/").split("/")[-1].rsplit(".", 1)[0]
+        base = base.replace("_", " ").replace("-", " ").strip()
+        raw = " ".join(w.capitalize() for w in base.split())
+
+    k_upper = raw.upper()
+
+    # Non-plantation areas — keep as-is without "Unit " prefix
+    NON_PLANTATION = {"KSO", "INFRASTRUKTUR", "EMPLASEMEN", "FASILITAS"}
+    if k_upper in NON_PLANTATION:
+        return raw.title()
+
+    # Known aliases — normalize to canonical "Unit X" form
+    ALIASES = {
+        "WABE": "Unit Way Berulu",
+        "WAY BELULU": "Unit Way Berulu",
+        "WAY BERULU": "Unit Way Berulu",
+        "WALI": "Unit Way Lima",
+        "WAY LIMA": "Unit Way Lima",
+        "TUBU": "Unit Tulungbuyut",
+        "TULUNGBUYUT": "Unit Tulungbuyut",
+        "KEDATON": "Unit Kedaton",
+        "BERGEN": "Unit Bergen",
+        "KETAHUN": "Unit Ketahun",
+        "PADANG PELAWI": "Unit Padang Pelawi",
+    }
+    if k_upper in ALIASES:
+        return ALIASES[k_upper]
+
+    # Generic: prepend "Unit " if not already there
+    titled = raw.title()
+    if not titled.lower().startswith("unit "):
+        return f"Unit {titled}"
+    return titled
 
 
 class GeoJSONFallback:
@@ -61,7 +180,20 @@ class GeoJSONFallback:
                     elif "wali" in sf_lower:
                         kebun_name = "Unit Way Lima"
                     else:
-                        kebun_name = "Unit Bergen"
+                        raw_kebun = props.get("kebun") or props.get("Kebun") or props.get("KEBUN")
+                        if raw_kebun:
+                            raw_kebun = str(raw_kebun).strip()
+                            if not raw_kebun.lower().startswith("unit"):
+                                kebun_name = f"Unit {raw_kebun}"
+                            else:
+                                kebun_name = raw_kebun
+                        else:
+                            base_name = file.name.rsplit('.', 1)[0].replace('_', ' ').replace('-', ' ').strip()
+                            base_name = ' '.join(w.capitalize() for w in base_name.split())
+                            if not base_name.lower().startswith("unit"):
+                                kebun_name = f"Unit {base_name}"
+                            else:
+                                kebun_name = base_name
 
                     no_polygon = props.get("No_Polygon") or props.get("no_polygon")
 
@@ -350,7 +482,10 @@ def get_all_kebun(
         if _db_geojson_cache is not None:
             return _db_geojson_cache
 
-    q = db.query(BlokKebun, func.ST_AsGeoJSON(BlokKebun.geom).label("geom_json"))
+    q = db.query(
+        BlokKebun, 
+        func.ST_AsGeoJSON(func.ST_SimplifyPreserveTopology(BlokKebun.geom, 0.00005)).label("geom_json")
+    )
 
     if kebun:
         q = q.filter(BlokKebun.kebun == kebun)
@@ -581,23 +716,7 @@ async def upload_geojson(
             if not no_poly:
                 continue
             
-            raw_kebun = props.get("Kebun") or props.get("kebun")
-            kebun_name = raw_kebun.strip() if raw_kebun else "Way Berulu"
-            k_upper = kebun_name.upper()
-            if k_upper in ["WABE", "WAY BELULU", "WAY BERULU"]:
-                kebun_name = "Way Berulu"
-            elif k_upper in ["WALI", "WAY LIMA"]:
-                kebun_name = "Wali"
-            elif k_upper in ["TUBU", "TULUNGBUYUT"]:
-                kebun_name = "TUBU"
-            elif k_upper == "KEDATON":
-                kebun_name = "Kedaton"
-            elif k_upper == "BERGEN":
-                kebun_name = "Bergen"
-            elif k_upper == "KSO":
-                kebun_name = "KSO"
-            else:
-                kebun_name = kebun_name.title()
+            kebun_name = _normalize_kebun_name(props)
 
             l_gis_raw = props.get("L_GIS") or props.get("l_gis")
             l_gis_val = None
@@ -668,23 +787,7 @@ async def upload_geojson(
                 if not no_poly:
                     continue
                 
-                raw_kebun = props.get("Kebun") or props.get("kebun")
-                kebun_name = raw_kebun.strip() if raw_kebun else "Way Berulu"
-                k_upper = kebun_name.upper()
-                if k_upper in ["WABE", "WAY BELULU", "WAY BERULU"]:
-                    kebun_name = "Way Berulu"
-                elif k_upper in ["WALI", "WAY LIMA"]:
-                    kebun_name = "Wali"
-                elif k_upper in ["TUBU", "TULUNGBUYUT"]:
-                    kebun_name = "TUBU"
-                elif k_upper == "KEDATON":
-                    kebun_name = "Kedaton"
-                elif k_upper == "BERGEN":
-                    kebun_name = "Bergen"
-                elif k_upper == "KSO":
-                    kebun_name = "KSO"
-                else:
-                    kebun_name = kebun_name.title()
+                kebun_name = _normalize_kebun_name(props, no_poly or "")
 
                 l_gis_raw = props.get("L_GIS") or props.get("l_gis")
                 l_gis_val = None
@@ -694,7 +797,11 @@ async def upload_geojson(
                     except ValueError:
                         pass
 
-                existing = db.query(BlokKebun).filter(BlokKebun.no_polygon == no_poly).first()
+                # Match on BOTH no_polygon AND kebun to prevent cross-kebun collisions
+                existing = db.query(BlokKebun).filter(
+                    BlokKebun.no_polygon == no_poly,
+                    BlokKebun.kebun == kebun_name
+                ).first()
                 
                 fields = {
                     "kebun": kebun_name,
@@ -769,10 +876,10 @@ def get_kebun_outlines(db: Session = Depends(get_db)):
         return _db_kebun_outlines_cache
 
     try:
-        # Group by kebun and ST_Union the geometries
+        # Group by kebun and ST_Union the geometries with simplification
         q = db.query(
             BlokKebun.kebun,
-            func.ST_AsGeoJSON(func.ST_Union(BlokKebun.geom)).label("geom_json")
+            func.ST_AsGeoJSON(func.ST_SimplifyPreserveTopology(func.ST_Union(BlokKebun.geom), 0.0002)).label("geom_json")
         ).group_by(BlokKebun.kebun)
         rows = q.all()
 
@@ -801,11 +908,11 @@ def get_afdeling_outlines(db: Session = Depends(get_db)):
         return _db_afdeling_outlines_cache
 
     try:
-        # Group by kebun, afdeling and ST_Union the geometries
+        # Group by kebun, afdeling and ST_Union the geometries with simplification
         q = db.query(
             BlokKebun.kebun,
             BlokKebun.afdeling,
-            func.ST_AsGeoJSON(func.ST_Union(BlokKebun.geom)).label("geom_json")
+            func.ST_AsGeoJSON(func.ST_SimplifyPreserveTopology(func.ST_Union(BlokKebun.geom), 0.0002)).label("geom_json")
         ).group_by(BlokKebun.kebun, BlokKebun.afdeling)
         rows = q.all()
 

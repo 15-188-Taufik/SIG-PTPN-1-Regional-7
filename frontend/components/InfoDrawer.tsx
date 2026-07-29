@@ -128,7 +128,14 @@ export default function InfoDrawer({ feature, kebunName, geojsonData, onClose }:
           setHistory(data);
         })
         .catch((err) => {
-          console.error('Failed to fetch block history:', err);
+          const status = err?.response?.status;
+          if (status === 404) {
+            // Block ID is stale (after DB re-import). History will be empty.
+            console.warn(`[InfoDrawer] Block ID ${feature.properties.id} not found (404). Cache may be stale \u2014 refresh the page.`);
+            setHistory(null);
+          } else {
+            console.error('Failed to fetch block history:', err);
+          }
         })
         .finally(() => {
           setLoadingHistory(false);

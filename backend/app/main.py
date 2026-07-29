@@ -4,13 +4,17 @@ from fastapi.middleware.gzip import GZipMiddleware
 from contextlib import asynccontextmanager
 from app.config import settings
 from app.routers import auth, kebun, sync, kegiatan
-from app.routers.kebun import GeoJSONFallback
+from app.routers.kebun import GeoJSONFallback, warm_cache_background
+import threading
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Preload fallback GeoJSON data on startup to eliminate first-request latency
     GeoJSONFallback.load_all()
+    # Pre-warm all DB caches in background thread to eliminate cold-start DB latency
+    t = threading.Thread(target=warm_cache_background, daemon=True)
+    t.start()
     yield
 
 

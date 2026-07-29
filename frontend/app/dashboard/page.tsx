@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import dynamic from 'next/dynamic';
-import { fetchKebun, fetchStats, fetchKebunList, fetchKebunOutlines, fetchAfdelingOutlines } from '@/lib/api';
+import { fetchKebun, fetchStats, fetchKebunList, fetchKebunOutlines, fetchAfdelingOutlines, normalizeKebunName } from '@/lib/api';
 import { clearToken, isAuthenticated } from '@/lib/auth';
 import { FeatureCollection, GeoJSONFeature, StatsResponse } from '@/types/kebun';
 
@@ -17,6 +17,62 @@ import HeaderNav from '@/components/HeaderNav';
 // Dynamically import map views (client-side only, no SSR)
 const MapView = dynamic(() => import('@/components/MapView'), { ssr: false });
 const Map3DView = dynamic(() => import('@/components/Map3DView'), { ssr: false });
+
+const matchCropStatus = (statusStr: string | null | undefined, filter: string): boolean => {
+  if (filter === 'Semua') return true;
+  const s = (statusStr || '').toLowerCase().trim();
+  
+  if (filter === 'TM') {
+    return s === 'tm' || s.includes('tanaman menghasilkan');
+  }
+  if (filter === 'ATP') {
+    return s === 'atp' || s.includes('tanaman tidak produktif');
+  }
+  if (filter === 'Puso') {
+    return s.includes('bera') || s.includes('puso');
+  }
+  if (filter === 'KSU') {
+    return s.includes('ksu') || s.includes('swakelola') || s.includes('garapan') || s.includes('bermasalah');
+  }
+  if (filter === 'Okupasi') {
+    return s.includes('okupasi') || s.includes('pinjam pakai');
+  }
+  if (filter === 'Fasilitas') {
+    return (
+      s.includes('emplas') ||
+      s.includes('perumahan') ||
+      s.includes('kantor') ||
+      s.includes('puskesmas') ||
+      s.includes('taman') ||
+      s.includes('dinas') ||
+      s.includes('staf') ||
+      s.includes('sosial') ||
+      s.includes('lapangan bola')
+    );
+  }
+  if (filter === 'Infrastruktur') {
+    return (
+      s.includes('jalan') ||
+      s.includes('parit') ||
+      s.includes('embung') ||
+      s.includes('saluran') ||
+      s.includes('jembatan') ||
+      s.includes('rel')
+    );
+  }
+  if (filter === 'Penunjang') {
+    return (
+      s.includes('obat') ||
+      s.includes('entrys') ||
+      s.includes('bibit') ||
+      s.includes('kakao')
+    );
+  }
+  if (filter === 'Kosong') {
+    return s.length === 0 || s === 'null';
+  }
+  return false;
+};
 
 export default function DashboardPage() {
   const router = useRouter();
@@ -84,6 +140,28 @@ export default function DashboardPage() {
         fetchKebunOutlines(forceRefresh),
         fetchAfdelingOutlines(forceRefresh),
       ]);
+      // Normalize kebun names in all GeoJSON features so filter matching is consistent
+      if (geoData?.features) {
+        geoData.features.forEach((f: GeoJSONFeature) => {
+          if (f.properties?.kebun) {
+            f.properties.kebun = normalizeKebunName(f.properties.kebun);
+          }
+        });
+      }
+      if (kebunOutlinesData?.features) {
+        kebunOutlinesData.features.forEach((f: GeoJSONFeature) => {
+          if (f.properties?.kebun) {
+            f.properties.kebun = normalizeKebunName(f.properties.kebun);
+          }
+        });
+      }
+      if (afdelingOutlinesData?.features) {
+        afdelingOutlinesData.features.forEach((f: GeoJSONFeature) => {
+          if (f.properties?.kebun) {
+            f.properties.kebun = normalizeKebunName(f.properties.kebun);
+          }
+        });
+      }
       const sortedList = [...listData].sort((a, b) => a.localeCompare(b));
       setGeojsonData(geoData);
       setStats(statsData);
@@ -185,12 +263,7 @@ export default function DashboardPage() {
 
     // Filter by Crop Status
     if (selectedCropStatus !== 'Semua') {
-      features = features.filter((f) => {
-        const s = (f.properties.status || '').toLowerCase();
-        if (selectedCropStatus === 'TM') return s.includes('tm');
-        if (selectedCropStatus === 'TBM') return s.includes('tbm');
-        return false;
-      });
+      features = features.filter((f) => matchCropStatus(f.properties.status, selectedCropStatus));
     }
 
     // Filter by Planting Year Range
@@ -213,12 +286,7 @@ export default function DashboardPage() {
     let baseFiltered = geojsonData.features;
 
     if (selectedCropStatus !== 'Semua') {
-      baseFiltered = baseFiltered.filter((f) => {
-        const s = (f.properties.status || '').toLowerCase();
-        if (selectedCropStatus === 'TM') return s.includes('tm');
-        if (selectedCropStatus === 'TBM') return s.includes('tbm');
-        return false;
-      });
+      baseFiltered = baseFiltered.filter((f) => matchCropStatus(f.properties.status, selectedCropStatus));
     }
 
     baseFiltered = baseFiltered.filter((f) => {
@@ -318,6 +386,8 @@ export default function DashboardPage() {
           collapsed={sidebarCollapsed}
           onToggleCollapse={() => setSidebarCollapsed(!sidebarCollapsed)}
           onWidthChange={setSidebarWidth}
+          is3DMode={is3DMode}
+          onToggle3DMode={setIs3DMode}
         />
 
         {/* Center/Right Spacious Content View */}

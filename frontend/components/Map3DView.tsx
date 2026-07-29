@@ -23,11 +23,13 @@ interface Map3DViewProps {
 }
 
 const KEBUN_COLORS: Record<string, string> = {
-  'Unit Way Berulu': '#0072B2',
-  'Unit Bergen': '#009E73',
-  'Unit Way Lima': '#CC79A7',
-  'Unit Tulungbuyut': '#E69F00',
-  'Unit Kedaton': '#56B4E9',
+  'Unit Way Berulu': '#0072B2',   // Biru
+  'Unit Bergen': '#009E73',       // Hijau Kebiruan
+  'Unit Way Lima': '#CC79A7',     // Merah Muda Keunguan
+  'Unit Tulungbuyut': '#E69F00',  // Jingga
+  'Unit Kedaton': '#56B4E9',      // Biru Langit
+  'Unit Ketahun': '#D55E00',      // Merah Jingga / Vermillion
+  'Unit Padang Pelawi': '#8B1A4A', // Merah Tua / Burgundy
 };
 
 const FOUR_COLOR_PALETTE = [
@@ -52,7 +54,21 @@ function getKebunColor(kebun: string | null): string {
   const key = Object.keys(KEBUN_COLORS).find(
     (k) => k.toLowerCase() === kebun.toLowerCase()
   );
-  return key ? KEBUN_COLORS[key] : '#848684';
+  if (key) return KEBUN_COLORS[key];
+  
+  // Consistent color generation using string hashing for new gardens (32+ kebun support)
+  let hash = 0;
+  for (let i = 0; i < kebun.length; i++) {
+    hash = kebun.charCodeAt(i) + ((hash << 5) - hash);
+  }
+  const colors = [
+    '#393b79', '#5254a3', '#6b6ecf', '#9c9ede', '#637939', '#8ca252', '#b5cf6b', '#cedb9c',
+    '#8c6d31', '#bd9e39', '#e7ba52', '#e7cb94', '#843c39', '#ad494a', '#d6616b', '#e7969c',
+    '#7b4173', '#a55194', '#ce6dbd', '#de9ed6', '#3182bd', '#6baed6', '#9ecae1', '#c6dbef',
+    '#e6550d', '#fd8d3c', '#fdae6b', '#fdd0a2', '#31a354', '#74c476', '#a1d99b', '#c7e9c0'
+  ];
+  const idx = Math.abs(hash) % colors.length;
+  return colors[idx];
 }
 
 function getFeatureColor(
@@ -629,12 +645,24 @@ export default function Map3DView({
     }
   };
 
+  // Keep track of the last activeKebun and whether we have done the initial fit to prevent camera resetting on metric/filter changes
+  const lastActiveKebunRef = useRef<string[]>(activeKebun);
+  const initialFitDoneRef = useRef(false);
+
   useEffect(() => {
-    addLog(`fitToFeatures useEffect fired. count=${processedFeatures.length}, loading=${isLoading}`);
-    if (!isLoading && processedFeatures.length > 0) {
+    if (isLoading) return;
+
+    const kebunChanged =
+      lastActiveKebunRef.current.length !== activeKebun.length ||
+      !activeKebun.every((k) => lastActiveKebunRef.current.includes(k));
+
+    lastActiveKebunRef.current = activeKebun;
+
+    if ((kebunChanged || !initialFitDoneRef.current) && processedFeatures.length > 0) {
       fitToFeatures();
+      initialFitDoneRef.current = true;
     }
-  }, [processedFeatures, activeKebun, isLoading]);
+  }, [activeKebun, isLoading]);
 
   const handleResetCamera = () => {
     const map = mapRef.current;

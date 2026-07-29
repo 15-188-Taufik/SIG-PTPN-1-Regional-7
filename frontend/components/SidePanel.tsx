@@ -43,6 +43,8 @@ interface SidePanelProps {
   collapsed: boolean;
   onToggleCollapse: () => void;
   onWidthChange?: (width: number) => void;
+  is3DMode?: boolean;
+  onToggle3DMode?: (is3D: boolean) => void;
 }
 
 interface AlertItem {
@@ -73,6 +75,8 @@ export default function SidePanel({
   collapsed,
   onToggleCollapse,
   onWidthChange,
+  is3DMode = false,
+  onToggle3DMode,
 }: SidePanelProps) {
   const [activeTab, setActiveTab] = useState<'filter' | 'alerts' | 'upload'>('filter');
   const [width, setWidth] = useState(300);
@@ -558,71 +562,128 @@ export default function SidePanel({
                   })()}
                 </div>
 
-                {/* Visual Detail Level Selector (Segmented Control) */}
-                <div>
-                  <div style={sectionLabel}>Garis Tepi Berdasarkan </div>
-                  <div
-                    style={{
-                      display: 'flex',
-                      background: '#e0e0e0',
-                      padding: '2px',
-                      borderRadius: '0px',
-                      marginBottom: '12px',
-                    }}
-                  >
-                    <button
-                      onClick={() => onDetailLevelChange('block')}
+                {/* 2D/3D Switcher button group */}
+                {onToggle3DMode && (
+                  <div style={{ marginBottom: '16px' }}>
+                    <div style={sectionLabel}>Dimensi Peta</div>
+                    <div
                       style={{
-                        flex: 1,
-                        padding: '6px 6px',
-                        background: detailLevel === 'block' ? '#ffffff' : 'transparent',
-                        border: 'none',
-                        color: 'var(--cds-text-primary)',
-                        fontSize: '11px',
-                        fontWeight: '600',
-                        cursor: 'pointer',
-                        fontFamily: 'inherit',
-                        textAlign: 'center',
+                        display: 'flex',
+                        background: '#f4f4f4',
+                        borderRadius: '2px',
+                        padding: '2px',
+                        border: '1px solid var(--cds-border)',
                       }}
                     >
-                      Blok
-                    </button>
-                    <button
-                      onClick={() => onDetailLevelChange('afdeling')}
-                      style={{
-                        flex: 1,
-                        padding: '6px 6px',
-                        background: detailLevel === 'afdeling' ? '#ffffff' : 'transparent',
-                        border: 'none',
-                        color: 'var(--cds-text-primary)',
-                        fontSize: '11px',
-                        fontWeight: '600',
-                        cursor: 'pointer',
-                        fontFamily: 'inherit',
-                        textAlign: 'center',
-                      }}
-                    >
-                      Afdeling
-                    </button>
-                    <button
-                      onClick={() => onDetailLevelChange('kebun')}
-                      style={{
-                        flex: 1,
-                        padding: '6px 6px',
-                        background: detailLevel === 'kebun' ? '#ffffff' : 'transparent',
-                        border: 'none',
-                        color: 'var(--cds-text-primary)',
-                        fontSize: '11px',
-                        fontWeight: '600',
-                        cursor: 'pointer',
-                        fontFamily: 'inherit',
-                        textAlign: 'center',
-                      }}
-                    >
-                      Kebun
-                    </button>
+                      <button
+                        onClick={() => onToggle3DMode(false)}
+                        style={{
+                          flex: 1,
+                          background: !is3DMode ? 'var(--cds-primary, #0F62FE)' : 'transparent',
+                          color: !is3DMode ? '#ffffff' : 'var(--cds-text-secondary)',
+                          border: 'none',
+                          fontSize: '11px',
+                          fontWeight: 600,
+                          padding: '6px 0',
+                          borderRadius: '1px',
+                          cursor: 'pointer',
+                          fontFamily: 'inherit',
+                          transition: 'all 0.15s ease',
+                          textAlign: 'center',
+                        }}
+                      >
+                        2D Leaflet
+                      </button>
+                      <button
+                        onClick={() => onToggle3DMode(true)}
+                        style={{
+                          flex: 1,
+                          background: is3DMode ? 'var(--cds-primary, #0F62FE)' : 'transparent',
+                          color: is3DMode ? '#ffffff' : 'var(--cds-text-secondary)',
+                          border: 'none',
+                          fontSize: '11px',
+                          fontWeight: 600,
+                          padding: '6px 0',
+                          borderRadius: '1px',
+                          cursor: 'pointer',
+                          fontFamily: 'inherit',
+                          transition: 'all 0.15s ease',
+                          textAlign: 'center',
+                        }}
+                      >
+                        3D MapLibre
+                      </button>
+                    </div>
                   </div>
-                </div>
+                )}
+
+                {/* Visual Detail Level Selector (Segmented Control) */}
+                {!is3DMode && (
+                  <div>
+                    <div style={sectionLabel}>Warna Berdasarkan </div>
+                    <div
+                      style={{
+                        display: 'flex',
+                        background: '#e0e0e0',
+                        padding: '2px',
+                        borderRadius: '0px',
+                        marginBottom: '12px',
+                      }}
+                    >
+                      <button
+                        onClick={() => onDetailLevelChange('block')}
+                        style={{
+                          flex: 1,
+                          padding: '6px 6px',
+                          background: detailLevel === 'block' ? '#ffffff' : 'transparent',
+                          border: 'none',
+                          color: 'var(--cds-text-primary)',
+                          fontSize: '11px',
+                          fontWeight: '600',
+                          cursor: 'pointer',
+                          fontFamily: 'inherit',
+                          textAlign: 'center',
+                        }}
+                      >
+                        Blok
+                      </button>
+                      <button
+                        onClick={() => onDetailLevelChange('afdeling')}
+                        style={{
+                          flex: 1,
+                          padding: '6px 6px',
+                          background: detailLevel === 'afdeling' ? '#ffffff' : 'transparent',
+                          border: 'none',
+                          color: 'var(--cds-text-primary)',
+                          fontSize: '11px',
+                          fontWeight: '600',
+                          cursor: 'pointer',
+                          fontFamily: 'inherit',
+                          textAlign: 'center',
+                        }}
+                      >
+                        Afdeling
+                      </button>
+                      <button
+                        onClick={() => onDetailLevelChange('kebun')}
+                        style={{
+                          flex: 1,
+                          padding: '6px 6px',
+                          background: detailLevel === 'kebun' ? '#ffffff' : 'transparent',
+                          border: 'none',
+                          color: 'var(--cds-text-primary)',
+                          fontSize: '11px',
+                          fontWeight: '600',
+                          cursor: 'pointer',
+                          fontFamily: 'inherit',
+                          textAlign: 'center',
+                        }}
+                      >
+                        Kebun
+                      </button>
+                    </div>
+                  </div>
+                )}
 
 
                 {/* Stats Summary Tile */}

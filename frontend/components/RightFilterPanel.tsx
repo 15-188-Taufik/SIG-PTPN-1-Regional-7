@@ -200,56 +200,7 @@ export default function RightFilterPanel({
               <option value="density">Analisis Kerapatan (Pohon/Ha)</option>
             </select>
 
-            {/* 2D/3D Switcher button group */}
-            {onToggle3DMode && (
-              <div
-                style={{
-                  display: 'flex',
-                  marginTop: '8px',
-                  background: '#f4f4f4',
-                  borderRadius: '2px',
-                  padding: '2px',
-                  border: '1px solid var(--cds-border)',
-                }}
-              >
-                <button
-                  onClick={() => onToggle3DMode(false)}
-                  style={{
-                    flex: 1,
-                    background: !is3DMode ? 'var(--cds-primary, #0F62FE)' : 'transparent',
-                    color: !is3DMode ? '#ffffff' : 'var(--cds-text-secondary)',
-                    border: 'none',
-                    fontSize: '11px',
-                    fontWeight: 600,
-                    padding: '6px 0',
-                    borderRadius: '1px',
-                    cursor: 'pointer',
-                    transition: 'all 0.15s ease',
-                    fontFamily: 'inherit',
-                  }}
-                >
-                  2D Leaflet
-                </button>
-                <button
-                  onClick={() => onToggle3DMode(true)}
-                  style={{
-                    flex: 1,
-                    background: is3DMode ? 'var(--cds-primary, #0F62FE)' : 'transparent',
-                    color: is3DMode ? '#ffffff' : 'var(--cds-text-secondary)',
-                    border: 'none',
-                    fontSize: '11px',
-                    fontWeight: 600,
-                    padding: '6px 0',
-                    borderRadius: '1px',
-                    cursor: 'pointer',
-                    transition: 'all 0.15s ease',
-                    fontFamily: 'inherit',
-                  }}
-                >
-                  3D MapLibre
-                </button>
-              </div>
-            )}
+
           </div>
 
           <hr style={{ border: 'none', borderTop: '1px solid #e0e0e0', margin: 0 }} />
@@ -397,7 +348,14 @@ export default function RightFilterPanel({
             >
               <option value="Semua">Semua Status</option>
               <option value="TM">Tanaman Menghasilkan (TM)</option>
-              <option value="TBM">Tanaman Belum Menghasilkan (TBM)</option>
+              <option value="ATP">Tanaman Tidak Produktif (ATP)</option>
+              <option value="Puso">Areal Bera / Puso</option>
+              <option value="KSU">KSU / Swakelola / Garapan / Bermasalah</option>
+              <option value="Okupasi">Okupasi / Pinjam Pakai</option>
+              <option value="Fasilitas">Emplasemen / Perumahan / Kantor / Puskesmas</option>
+              <option value="Infrastruktur">Jalan, Parit, Embung, Saluran Air</option>
+              <option value="Penunjang">Tanaman Obat, Entrys, Kebun Bibit</option>
+              <option value="Kosong">Tanpa Status (NULL)</option>
             </select>
           </div>
 

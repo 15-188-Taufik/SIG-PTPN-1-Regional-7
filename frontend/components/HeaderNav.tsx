@@ -39,7 +39,7 @@ export default function HeaderNav() {
           </svg>
         </div>
         <div>
-          <div style={styles.brandTitle}>SIG PTPN</div>
+          <div style={styles.brandTitle}>DASHBOARD KEBUN</div>
           <div style={styles.brandSubtitle}>PTPN I Regional 7</div>
         </div>
       </div>
@@ -56,7 +56,7 @@ export default function HeaderNav() {
           <svg width="15" height="15" viewBox="0 0 16 16" fill="currentColor">
             <path d="M12 2C9.24 2 7 4.24 7 7c0 3.25 4.31 8.44 4.5 8.66.14.16.35.24.5.24s.36-.08.5-.24C12.69 15.44 17 10.25 17 7c0-2.76-2.24-5-5-5zm0 7c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zM1 3.5l4-1.5v10l-4 1.5v-10zM6 2l4 1.5v10.5L6 12.5V2z"/>
           </svg>
-          Peta Spasial GIS
+          Peta Spasial 
         </Link>
 
         <Link
