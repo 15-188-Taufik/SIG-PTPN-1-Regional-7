@@ -101,4 +101,4 @@ Seluruh data spasial kebun diimpor otomatis ke database Postgres/PostGIS menggun
 Untuk melakukan deployment online menggunakan layanan gratis (Supabase + Render.com + Vercel), silakan ikuti langkah demi langkah panduan lengkap yang berada pada file:
 [Panduan Deployment](walkthrough.md) (atau buka path `C:\Users\taufi\.gemini\antigravity\brain\b5b7e058-59de-4b28-8944-ddb5fb1038e3\walkthrough.md`).
 
-ini adalah web dari taufik dan ezra yang paling gans
+ini adalah web dari taufik dan ezra yang paling gans dan paling kece sejagat raya aowkwkwkwkwkw 
