@@ -32,11 +32,7 @@ export default function HeaderNav() {
       {/* Brand & Logo */}
       <div style={styles.brandGroup}>
         <div style={styles.logoBadge}>
-          <svg width="20" height="20" viewBox="0 0 32 32" fill="none">
-            <path d="M4 28L16 4L28 28H4Z" fill="#006A4E" opacity="0.95" />
-            <path d="M8 28L16 12L24 28H8Z" fill="#1CC729" opacity="0.6" />
-            <circle cx="16" cy="22" r="3" fill="#F5C842" />
-          </svg>
+          <img src="/logo-ptpn.png" alt="Logo PTPN" style={{ width: '24px', height: '24px', objectFit: 'contain' }} />
         </div>
         <div>
           <div style={styles.brandTitle}>DASHBOARD KEBUN</div>
@@ -138,8 +134,7 @@ const styles: Record<string, React.CSSProperties> = {
   logoBadge: {
     width: '28px',
     height: '28px',
-    background: 'rgba(255,255,255,0.1)',
-    borderRadius: '4px',
+    background: 'transparent',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',

@@ -65,11 +65,7 @@ export default function LoginPage() {
         {/* Logo & Header */}
         <div style={loginStyles.header}>
           <div style={loginStyles.logoContainer}>
-            <svg width="32" height="32" viewBox="0 0 32 32" fill="none">
-              <path d="M4 28L16 4L28 28H4Z" fill="#006A4E" opacity="0.95"/>
-              <path d="M8 28L16 12L24 28H8Z" fill="#1CC729" opacity="0.6"/>
-              <circle cx="16" cy="22" r="3" fill="#F5C842"/>
-            </svg>
+            <img src="/logo-ptpn.png" alt="Logo PTPN" style={{ width: '48px', height: '48px', objectFit: 'contain' }} />
           </div>
           <h1 style={loginStyles.title}>SIG PTPN</h1>
           <p style={loginStyles.subtitle}>Sistem Informasi Geografis Lahan</p>
@@ -192,8 +188,6 @@ const loginStyles: Record<string, React.CSSProperties> = {
     justifyContent: 'center',
     width: '56px',
     height: '56px',
-    background: '#f4f4f4',
-    border: '1px solid #e0e0e0',
     marginBottom: '16px',
   },
   title: {
