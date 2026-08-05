@@ -53,7 +53,11 @@ def get_pemeliharaan(
     ).join(BlokKebun, FactPemeliharaanHarian.blok_id == BlokKebun.id)
 
     if kebun:
-        query = query.filter(BlokKebun.kebun.ilike(f"%{kebun}%"))
+        kebun_list = [k.strip() for k in kebun.split(",") if k.strip()]
+        if len(kebun_list) > 1:
+            query = query.filter(or_(*[BlokKebun.kebun.ilike(f"%{k}%") for k in kebun_list]))
+        elif len(kebun_list) == 1:
+            query = query.filter(BlokKebun.kebun.ilike(f"%{kebun_list[0]}%"))
     if afdeling:
         query = query.filter(BlokKebun.afdeling.ilike(f"%{afdeling}%"))
     if start_date:
@@ -81,7 +85,12 @@ def get_pemeliharaan(
         func.coalesce(func.sum(FactPemeliharaanHarian.tenaga_kerja), 0).label("sum_hk")
     ).select_from(FactPemeliharaanHarian).join(BlokKebun, FactPemeliharaanHarian.blok_id == BlokKebun.id)
 
-    if kebun: metrics_query = metrics_query.filter(BlokKebun.kebun.ilike(f"%{kebun}%"))
+    if kebun:
+        kebun_list = [k.strip() for k in kebun.split(",") if k.strip()]
+        if len(kebun_list) > 1:
+            metrics_query = metrics_query.filter(or_(*[BlokKebun.kebun.ilike(f"%{k}%") for k in kebun_list]))
+        elif len(kebun_list) == 1:
+            metrics_query = metrics_query.filter(BlokKebun.kebun.ilike(f"%{kebun_list[0]}%"))
     if afdeling: metrics_query = metrics_query.filter(BlokKebun.afdeling.ilike(f"%{afdeling}%"))
     if start_date: metrics_query = metrics_query.filter(FactPemeliharaanHarian.tanggal >= start_date)
     if end_date: metrics_query = metrics_query.filter(FactPemeliharaanHarian.tanggal <= end_date)
@@ -249,7 +258,11 @@ def get_pemupukan(
     ).join(BlokKebun, FactPemupukanHarian.blok_id == BlokKebun.id)
 
     if kebun:
-        query = query.filter(BlokKebun.kebun.ilike(f"%{kebun}%"))
+        kebun_list = [k.strip() for k in kebun.split(",") if k.strip()]
+        if len(kebun_list) > 1:
+            query = query.filter(or_(*[BlokKebun.kebun.ilike(f"%{k}%") for k in kebun_list]))
+        elif len(kebun_list) == 1:
+            query = query.filter(BlokKebun.kebun.ilike(f"%{kebun_list[0]}%"))
     if afdeling:
         query = query.filter(BlokKebun.afdeling.ilike(f"%{afdeling}%"))
     if start_date:
@@ -274,7 +287,12 @@ def get_pemupukan(
         func.coalesce(func.sum(FactPemupukanHarian.tenaga_kerja), 0).label("sum_hk")
     ).select_from(FactPemupukanHarian).join(BlokKebun, FactPemupukanHarian.blok_id == BlokKebun.id)
 
-    if kebun: metrics_query = metrics_query.filter(BlokKebun.kebun.ilike(f"%{kebun}%"))
+    if kebun:
+        kebun_list = [k.strip() for k in kebun.split(",") if k.strip()]
+        if len(kebun_list) > 1:
+            metrics_query = metrics_query.filter(or_(*[BlokKebun.kebun.ilike(f"%{k}%") for k in kebun_list]))
+        elif len(kebun_list) == 1:
+            metrics_query = metrics_query.filter(BlokKebun.kebun.ilike(f"%{kebun_list[0]}%"))
     if afdeling: metrics_query = metrics_query.filter(BlokKebun.afdeling.ilike(f"%{afdeling}%"))
     if start_date: metrics_query = metrics_query.filter(FactPemupukanHarian.tanggal >= start_date)
     if end_date: metrics_query = metrics_query.filter(FactPemupukanHarian.tanggal <= end_date)

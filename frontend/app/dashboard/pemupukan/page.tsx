@@ -4,6 +4,9 @@ import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import HeaderNav from '@/components/HeaderNav';
 import KegiatanModal from '@/components/KegiatanModal';
+import MultiSelectDropdown from '@/components/MultiSelectDropdown';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
 import {
   fetchPemupukanList,
   createPemupukan,
@@ -32,7 +35,7 @@ export default function PemupukanPage() {
 
   // Filters
   const [kebunList, setKebunList] = useState<string[]>([]);
-  const [selectedKebun, setSelectedKebun] = useState<string>('');
+  const [selectedKebuns, setSelectedKebuns] = useState<string[]>([]);
   const [selectedAfdeling, setSelectedAfdeling] = useState<string>('');
   const [startDate, setStartDate] = useState<string>('');
   const [endDate, setEndDate] = useState<string>('');
@@ -89,7 +92,7 @@ export default function PemupukanPage() {
     setError('');
     try {
       const res = await fetchPemupukanList({
-        kebun: selectedKebun || undefined,
+        kebun: selectedKebuns.length > 0 ? selectedKebuns.join(',') : undefined,
         afdeling: selectedAfdeling || undefined,
         start_date: startDate || undefined,
         end_date: endDate || undefined,
@@ -104,7 +107,7 @@ export default function PemupukanPage() {
     } finally {
       setLoading(false);
     }
-  }, [selectedKebun, selectedAfdeling, startDate, endDate, search, sortOrder]);
+  }, [selectedKebuns, selectedAfdeling, startDate, endDate, search, sortOrder]);
 
   useEffect(() => {
     loadData();
@@ -148,8 +151,102 @@ export default function PemupukanPage() {
     loadData();
   }
 
+  function handleExportPDF() {
+    try {
+      const doc = new jsPDF('l', 'mm', 'a4');
+
+      doc.setFont('Helvetica', 'bold');
+      doc.setFontSize(16);
+      doc.setTextColor(25, 128, 56);
+      doc.text('PT PERKEBUNAN NUSANTARA I REGIONAL 7', 14, 15);
+      
+      doc.setFontSize(12);
+      doc.setTextColor(82, 82, 82);
+      doc.text('LAPORAN HARIAN PEMUPUKAN KEBUN', 14, 21);
+
+      doc.setFont('Helvetica', 'normal');
+      doc.setFontSize(9);
+      doc.setTextColor(110, 110, 110);
+      
+      const filterKebun = selectedKebuns.length > 0 ? selectedKebuns.join(', ') : 'Semua Kebun';
+      const filterAfd = selectedAfdeling || 'Semua Afdeling';
+      const filterTgl = (startDate || endDate) 
+        ? `${startDate || 'Awal'} s/d ${endDate || 'Akhir'}`
+        : 'Semua Tanggal';
+
+      doc.text(`Kebun/Unit: ${filterKebun}  |  Afdeling: ${filterAfd}  |  Periode: ${filterTgl}`, 14, 27);
+      
+      doc.setDrawColor(224, 224, 224);
+      doc.line(14, 30, 283, 30);
+
+      doc.setFont('Helvetica', 'bold');
+      doc.setFontSize(10);
+      doc.setTextColor(22, 22, 22);
+      doc.text('Rangkuman KPI Pemupukan:', 14, 37);
+
+      autoTable(doc, {
+        startY: 40,
+        head: [['Total Kegiatan', 'Total Luas Pemupukan', 'Total Jumlah Pupuk', 'Total Tenaga Kerja']],
+        body: [[
+          `${data.total.toLocaleString('id-ID')} Catatan`,
+          `${data.total_luas.toLocaleString('id-ID', { minimumFractionDigits: 1 })} Ha`,
+          `${data.total_jumlah_pupuk.toLocaleString('id-ID', { minimumFractionDigits: 1 })} Kg`,
+          `${data.total_hk.toLocaleString('id-ID')} HK`
+        ]],
+        theme: 'plain',
+        styles: { fontSize: 9, cellPadding: 2 },
+        headStyles: { fontStyle: 'bold', textColor: [110, 110, 110] },
+      });
+
+      const finalY = (doc as any).lastAutoTable.finalY + 8;
+      doc.text('Daftar Rincian Pemupukan Harian:', 14, finalY);
+
+      const tableHeaders = [
+        ['No', 'Tanggal', 'Kebun / Unit', 'Afdeling', 'Kode Blok', 'Jenis Pupuk', 'Jumlah (Kg)', 'Luas (Ha)', 'Tenaga (HK)', 'Keterangan']
+      ];
+      
+      const tableRows = data.items.map((row, idx) => [
+        idx + 1,
+        row.tanggal,
+        row.kebun || '-',
+        row.afdeling || '-',
+        row.kode_blok || '-',
+        row.jenis_pupuk || '-',
+        row.jumlah_pupuk != null ? row.jumlah_pupuk.toLocaleString('id-ID', { minimumFractionDigits: 1 }) : '-',
+        row.luas_aplikasi != null ? row.luas_aplikasi.toLocaleString('id-ID', { minimumFractionDigits: 1 }) : '-',
+        row.tenaga_kerja != null ? `${row.tenaga_kerja} HK` : '-',
+        row.keterangan || '-'
+      ]);
+
+      autoTable(doc, {
+        startY: finalY + 3,
+        head: tableHeaders,
+        body: tableRows,
+        theme: 'striped',
+        styles: { fontSize: 8, cellPadding: 2, font: 'Helvetica' },
+        headStyles: { fillColor: [38, 38, 38], textColor: [255, 255, 255], fontStyle: 'bold' },
+        columnStyles: {
+          0: { cellWidth: 10 },
+          1: { cellWidth: 22 },
+          2: { cellWidth: 30 },
+          3: { cellWidth: 25 },
+          4: { cellWidth: 20 },
+          5: { cellWidth: 35 },
+          6: { cellWidth: 25 },
+        }
+      });
+
+      const dateStr = new Date().toISOString().slice(0, 10);
+      doc.save(`Laporan_Pemupukan_Harian_${dateStr}.pdf`);
+      
+    } catch (err) {
+      console.error('Error generating PDF:', err);
+      alert('Gagal menghasilkan dokumen PDF.');
+    }
+  }
+
   function handleResetFilters() {
-    setSelectedKebun('');
+    setSelectedKebuns([]);
     setSelectedAfdeling('');
     setStartDate('');
     setEndDate('');
@@ -210,16 +307,13 @@ export default function PemupukanPage() {
           <div style={styles.filterGrid}>
             <div style={styles.filterGroup}>
               <label style={styles.filterLabel}>Kebun / Unit</label>
-              <select
-                value={selectedKebun}
-                onChange={(e) => setSelectedKebun(e.target.value)}
-                style={styles.filterInput}
-              >
-                <option value="">Semua Kebun</option>
-                {kebunList.map((k) => (
-                  <option key={k} value={k}>{k}</option>
-                ))}
-              </select>
+              <MultiSelectDropdown
+                label="Kebun / Unit"
+                options={kebunList}
+                selectedValues={selectedKebuns}
+                onChange={setSelectedKebuns}
+                placeholder="Semua Kebun"
+              />
             </div>
 
             <div style={styles.filterGroup}>
@@ -279,6 +373,9 @@ export default function PemupukanPage() {
             <div style={{ display: 'flex', alignItems: 'flex-end', gap: '8px' }}>
               <button onClick={handleResetFilters} style={styles.btnSecondary}>
                 Reset
+              </button>
+              <button onClick={handleExportPDF} style={styles.btnPrimary}>
+                Ekspor PDF
               </button>
             </div>
           </div>
