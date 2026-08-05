@@ -4,6 +4,9 @@ import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import HeaderNav from '@/components/HeaderNav';
 import ProduksiModal from '@/components/ProduksiModal';
+import MultiSelectDropdown from '@/components/MultiSelectDropdown';
+import jsPDF from 'jspdf';
+import 'jspdf-autotable';
 import {
   fetchProduksiList,
   createProduksi,
@@ -33,7 +36,7 @@ export default function ProduksiPage() {
 
   // Filters
   const [kebunList, setKebunList] = useState<string[]>([]);
-  const [selectedKebun, setSelectedKebun] = useState<string>('');
+  const [selectedKebuns, setSelectedKebuns] = useState<string[]>([]);
   const [selectedAfdeling, setSelectedAfdeling] = useState<string>('');
   const [startDate, setStartDate] = useState<string>('');
   const [endDate, setEndDate] = useState<string>('');
@@ -90,7 +93,7 @@ export default function ProduksiPage() {
     setError('');
     try {
       const res = await fetchProduksiList({
-        kebun: selectedKebun || undefined,
+        kebun: selectedKebuns.length > 0 ? selectedKebuns.join(',') : undefined,
         afdeling: selectedAfdeling || undefined,
         start_date: startDate || undefined,
         end_date: endDate || undefined,
@@ -105,7 +108,7 @@ export default function ProduksiPage() {
     } finally {
       setLoading(false);
     }
-  }, [selectedKebun, selectedAfdeling, startDate, endDate, search, sortOrder]);
+  }, [selectedKebuns, selectedAfdeling, startDate, endDate, search, sortOrder]);
 
   useEffect(() => {
     loadData();
@@ -149,8 +152,104 @@ export default function ProduksiPage() {
     loadData();
   }
 
+  function handleExportPDF() {
+    try {
+      const doc = new jsPDF('l', 'mm', 'a4');
+
+      doc.setFont('Helvetica', 'bold');
+      doc.setFontSize(16);
+      doc.setTextColor(25, 128, 56);
+      doc.text('PT PERKEBUNAN NUSANTARA I REGIONAL 7', 14, 15);
+      
+      doc.setFontSize(12);
+      doc.setTextColor(82, 82, 82);
+      doc.text('LAPORAN HARIAN PRODUKSI KEBUN', 14, 21);
+
+      doc.setFont('Helvetica', 'normal');
+      doc.setFontSize(9);
+      doc.setTextColor(110, 110, 110);
+      
+      const filterKebun = selectedKebuns.length > 0 ? selectedKebuns.join(', ') : 'Semua Kebun';
+      const filterAfd = selectedAfdeling || 'Semua Afdeling';
+      const filterTgl = (startDate || endDate) 
+        ? `${startDate || 'Awal'} s/d ${endDate || 'Akhir'}`
+        : 'Semua Tanggal';
+
+      doc.text(`Kebun/Unit: ${filterKebun}  |  Afdeling: ${filterAfd}  |  Periode: ${filterTgl}`, 14, 27);
+      
+      doc.setDrawColor(224, 224, 224);
+      doc.line(14, 30, 283, 30);
+
+      doc.setFont('Helvetica', 'bold');
+      doc.setFontSize(10);
+      doc.setTextColor(22, 22, 22);
+      doc.text('Rangkuman KPI Produksi:', 14, 37);
+
+      (doc as any).autoTable({
+        startY: 40,
+        head: [['Total Target Harian', 'Total Produksi Aktual', 'Capaian Rata-rata', 'Total Tenaga Kerja']],
+        body: [[
+          `${data.total_target.toLocaleString('id-ID', { minimumFractionDigits: 1 })} Ton`,
+          `${data.total_aktual.toLocaleString('id-ID', { minimumFractionDigits: 1 })} Ton`,
+          `${data.capaian_persen.toLocaleString('id-ID', { minimumFractionDigits: 1 })}%`,
+          `${data.total_pemanen.toLocaleString('id-ID')} HK`
+        ]],
+        theme: 'plain',
+        styles: { fontSize: 9, cellPadding: 2 },
+        headStyles: { fontStyle: 'bold', textColor: [110, 110, 110] },
+      });
+
+      const finalY = (doc as any).lastAutoTable.finalY + 8;
+      doc.text('Daftar Rincian Produksi Harian:', 14, finalY);
+
+      const tableHeaders = [
+        ['No', 'Tanggal', 'Kebun / Unit', 'Afdeling', 'Kode Blok', 'Target (Ton)', 'Aktual (Ton)', 'Capaian', 'Pemanen (HK)', 'Hujan (mm)', 'Rendemen (%)']
+      ];
+      
+      const tableRows = data.items.map((row, idx) => {
+        const capaian = row.target_harian_ton > 0 ? (row.produksi_aktual_ton / row.target_harian_ton) * 100 : 0;
+        return [
+          idx + 1,
+          row.tanggal,
+          row.kebun || '-',
+          row.afdeling || '-',
+          row.kode_blok || '-',
+          row.target_harian_ton ? row.target_harian_ton.toLocaleString('id-ID', { minimumFractionDigits: 1 }) : '-',
+          row.produksi_aktual_ton ? row.produksi_aktual_ton.toLocaleString('id-ID', { minimumFractionDigits: 1 }) : '-',
+          capaian > 0 ? `${capaian.toFixed(1)}%` : '-',
+          row.jumlah_pemanen_hk ? `${row.jumlah_pemanen_hk} HK` : '-',
+          row.curah_hujan_mm ? `${row.curah_hujan_mm} mm` : '0',
+          row.rendemen_persen ? `${row.rendemen_persen}%` : '-'
+        ];
+      });
+
+      (doc as any).autoTable({
+        startY: finalY + 3,
+        head: tableHeaders,
+        body: tableRows,
+        theme: 'striped',
+        styles: { fontSize: 8, cellPadding: 2, font: 'Helvetica' },
+        headStyles: { fillColor: [38, 38, 38], textColor: [255, 255, 255], fontStyle: 'bold' },
+        columnStyles: {
+          0: { cellWidth: 10 },
+          1: { cellWidth: 22 },
+          2: { cellWidth: 35 },
+          3: { cellWidth: 25 },
+          4: { cellWidth: 20 },
+        }
+      });
+
+      const dateStr = new Date().toISOString().slice(0, 10);
+      doc.save(`Laporan_Produksi_Harian_${dateStr}.pdf`);
+      
+    } catch (err) {
+      console.error('Error generating PDF:', err);
+      alert('Gagal menghasilkan dokumen PDF.');
+    }
+  }
+
   function handleResetFilters() {
-    setSelectedKebun('');
+    setSelectedKebuns([]);
     setSelectedAfdeling('');
     setStartDate('');
     setEndDate('');
@@ -218,16 +317,13 @@ export default function ProduksiPage() {
           <div style={styles.filterGrid}>
             <div style={styles.filterGroup}>
               <label style={styles.filterLabel}>Kebun / Unit</label>
-              <select
-                value={selectedKebun}
-                onChange={(e) => setSelectedKebun(e.target.value)}
-                style={styles.filterInput}
-              >
-                <option value="">Semua Kebun</option>
-                {kebunList.map((k) => (
-                  <option key={k} value={k}>{k}</option>
-                ))}
-              </select>
+              <MultiSelectDropdown
+                label="Kebun / Unit"
+                options={kebunList}
+                selectedValues={selectedKebuns}
+                onChange={setSelectedKebuns}
+                placeholder="Semua Kebun"
+              />
             </div>
 
             <div style={styles.filterGroup}>
@@ -287,6 +383,9 @@ export default function ProduksiPage() {
             <div style={{ display: 'flex', alignItems: 'flex-end', gap: '8px' }}>
               <button onClick={handleResetFilters} style={styles.btnSecondary}>
                 Reset
+              </button>
+              <button onClick={handleExportPDF} style={styles.btnPrimary}>
+                Ekspor PDF
               </button>
             </div>
           </div>
