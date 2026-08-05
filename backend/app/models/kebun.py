@@ -77,8 +77,6 @@ class FactProduksiHarian(Base):
     jumlah_pemanen_hk = Column(Integer)
     curah_hujan_mm = Column(Float)
     rendemen_persen = Column(Float)
-    created_at = Column(TIMESTAMP, server_default=func.now())
-    updated_at = Column(TIMESTAMP, server_default=func.now(), onupdate=func.now())
 
 
 class FactPemeliharaanHarian(Base):
