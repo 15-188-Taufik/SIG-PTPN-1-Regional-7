@@ -1,0 +1,88 @@
+erDiagram
+    dim_unit {
+        int id_unit PK
+        text nama_unit
+        text komoditas
+        float latitude
+        float longitude
+    }
+
+    dim_afdeling {
+        int id_afdeling PK
+        int id_unit FK
+        text nama_afdeling
+    }
+
+    blok_kebun {
+        int id PK
+        text kebun
+        text kode_blok
+        text no_polygon
+        text no_aset
+        text afdeling
+        text komoditi
+        text status
+        text thn_tanam
+        text varietas
+        float l_gis
+        float l_rkap
+        float l_hgu
+        float protas_21
+        float protas_22
+        float protas_23
+        float protas_24
+        int populasi
+        text pica
+        text alas_hak
+        text kat_als_hk
+        text status_kpm
+        text keterangan
+        text nomor_peta
+        json properties
+        geometry geom
+        text source_file
+        timestamp imported_at
+    }
+
+    fact_produksi_harian {
+        int id_fakta PK
+        date tanggal
+        int id_afdeling FK
+        float target_harian_ton
+        float produksi_aktual_ton
+        int jumlah_pemanen_hk
+        float curah_hujan_mm
+        float rendemen_persen
+    }
+
+    fact_pemeliharaan_harian {
+        int id PK
+        int blok_id FK
+        date tanggal
+        text jenis_kegiatan
+        text material
+        float dosis_aplikasi
+        float luas_aplikasi
+        int tenaga_kerja
+        text keterangan
+        timestamp created_at
+        timestamp updated_at
+    }
+
+    fact_pemupukan_harian {
+        int id PK
+        int blok_id FK
+        date tanggal
+        text jenis_pupuk
+        float jumlah_pupuk
+        float luas_aplikasi
+        int tenaga_kerja
+        text keterangan
+        timestamp created_at
+        timestamp updated_at
+    }
+
+    dim_unit ||--o{ dim_afdeling : "memiliki banyak"
+    dim_afdeling ||--o{ fact_produksi_harian : "mencatat produksi"
+    blok_kebun ||--o{ fact_pemeliharaan_harian : "memiliki riwayat pemeliharaan"
+    blok_kebun ||--o{ fact_pemupukan_harian : "memiliki riwayat pemupukan"
