@@ -6,7 +6,7 @@ import HeaderNav from '@/components/HeaderNav';
 import ProduksiModal from '@/components/ProduksiModal';
 import MultiSelectDropdown from '@/components/MultiSelectDropdown';
 import jsPDF from 'jspdf';
-import 'jspdf-autotable';
+import autoTable from 'jspdf-autotable';
 import {
   fetchProduksiList,
   createProduksi,
@@ -185,7 +185,7 @@ export default function ProduksiPage() {
       doc.setTextColor(22, 22, 22);
       doc.text('Rangkuman KPI Produksi:', 14, 37);
 
-      (doc as any).autoTable({
+      autoTable(doc, {
         startY: 40,
         head: [['Total Target Harian', 'Total Produksi Aktual', 'Capaian Rata-rata', 'Total Tenaga Kerja']],
         body: [[
@@ -223,7 +223,7 @@ export default function ProduksiPage() {
         ];
       });
 
-      (doc as any).autoTable({
+      autoTable(doc, {
         startY: finalY + 3,
         head: tableHeaders,
         body: tableRows,
