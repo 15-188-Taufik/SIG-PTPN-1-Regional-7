@@ -27,9 +27,11 @@ class BaseSyncRow(BaseModel):
 class ProduksiHarianRow(BaseSyncRow):
     id_fakta: Optional[int] = Field(None, alias="id_fakta")
     tanggal: date
-    id_afdeling: Optional[int] = None
+    blok_id: Optional[int] = Field(None, alias="id_blok")
     kebun: Optional[str] = None
     afdeling: Optional[str] = None
+    no_polygon: Optional[str] = Field(None, alias="no_polygon")
+    kode_blok: Optional[str] = Field(None, alias="kode_blok")
     target_harian_ton: Optional[float] = Field(None, alias="target_harian_ton")
     produksi_aktual_ton: Optional[float] = Field(None, alias="produksi_aktual_ton")
     jumlah_pemanen_hk: Optional[float] = Field(None, alias="jumlah_pemanen_hk")

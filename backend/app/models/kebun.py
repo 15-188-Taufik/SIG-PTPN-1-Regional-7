@@ -70,13 +70,15 @@ class FactProduksiHarian(Base):
     __tablename__ = "fact_produksi_harian"
 
     id_fakta = Column(Integer, primary_key=True, index=True, autoincrement=True)
+    blok_id = Column(Integer, ForeignKey("blok_kebun.id", ondelete="CASCADE"), nullable=False, index=True)
     tanggal = Column(Date, nullable=False, index=True)
-    id_afdeling = Column(Integer, ForeignKey("dim_afdeling.id_afdeling"), nullable=False, index=True)
     target_harian_ton = Column(Float)
     produksi_aktual_ton = Column(Float)
     jumlah_pemanen_hk = Column(Integer)
     curah_hujan_mm = Column(Float)
     rendemen_persen = Column(Float)
+    created_at = Column(TIMESTAMP, server_default=func.now())
+    updated_at = Column(TIMESTAMP, server_default=func.now(), onupdate=func.now())
 
 
 class FactPemeliharaanHarian(Base):

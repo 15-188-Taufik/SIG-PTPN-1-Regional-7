@@ -94,10 +94,8 @@ class PemupukanListResponse(BaseModel):
 # ----------------------------------------------------
 
 class ProduksiHarianBase(BaseModel):
+    blok_id: int = Field(..., description="ID Blok Kebun")
     tanggal: date = Field(..., description="Tanggal produksi (YYYY-MM-DD)")
-    id_afdeling: Optional[int] = Field(None, description="ID Afdeling")
-    kebun: Optional[str] = Field(None, description="Nama kebun/unit")
-    afdeling: Optional[str] = Field(None, description="Nama afdeling")
     target_harian_ton: Optional[float] = Field(0.0, description="Target harian dalam Ton")
     produksi_aktual_ton: Optional[float] = Field(0.0, description="Produksi aktual dalam Ton")
     jumlah_pemanen_hk: Optional[int] = Field(0, description="Jumlah pemanen dalam HK")
@@ -110,10 +108,8 @@ class ProduksiHarianCreate(ProduksiHarianBase):
 
 
 class ProduksiHarianUpdate(BaseModel):
+    blok_id: Optional[int] = None
     tanggal: Optional[date] = None
-    id_afdeling: Optional[int] = None
-    kebun: Optional[str] = None
-    afdeling: Optional[str] = None
     target_harian_ton: Optional[float] = None
     produksi_aktual_ton: Optional[float] = None
     jumlah_pemanen_hk: Optional[int] = None
@@ -123,6 +119,9 @@ class ProduksiHarianUpdate(BaseModel):
 
 class ProduksiHarianResponse(ProduksiHarianBase):
     id_fakta: int
+    kebun: Optional[str] = None
+    afdeling: Optional[str] = None
+    kode_blok: Optional[str] = None
 
     class Config:
         from_attributes = True

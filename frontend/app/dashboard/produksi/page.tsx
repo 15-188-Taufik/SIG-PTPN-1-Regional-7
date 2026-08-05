@@ -10,6 +10,7 @@ import {
   updateProduksi,
   deleteProduksi,
   fetchKebunList,
+  fetchKebun,
   ProduksiItem,
   ProduksiListResponse,
 } from '@/lib/api';
@@ -39,6 +40,9 @@ export default function ProduksiPage() {
   const [search, setSearch] = useState<string>('');
   const [sortOrder, setSortOrder] = useState<'desc' | 'asc'>('desc');
 
+  // Blok options for modal
+  const [blokList, setBlokList] = useState<Array<{ id: number; kebun: string; afdeling: string; kode_blok: string }>>([]);
+
   // Pagination
   const [pageSize, setPageSize] = useState<number>(50);
   const [currentPage, setCurrentPage] = useState<number>(1);
@@ -54,14 +58,27 @@ export default function ProduksiPage() {
     }
   }, [router]);
 
-  // Load Kebuns dropdown
+  // Load Kebuns & Bloks for dropdowns
   useEffect(() => {
     async function loadInitialOptions() {
       try {
         const kList = await fetchKebunList();
         setKebunList(kList || []);
+
+        const geojson = await fetchKebun();
+        if (geojson && geojson.features) {
+          const bloks = geojson.features
+            .filter((f) => f.properties && f.properties.id)
+            .map((f) => ({
+              id: f.properties.id!,
+              kebun: f.properties.kebun || 'Unknown',
+              afdeling: f.properties.afdeling || 'Afd I',
+              kode_blok: f.properties.kode_blok || f.properties.no_polygon || 'Blok',
+            }));
+          setBlokList(bloks);
+        }
       } catch (err) {
-        console.error('Error loading kebun options:', err);
+        console.error('Error loading initial options:', err);
       }
     }
     loadInitialOptions();
@@ -294,6 +311,7 @@ export default function ProduksiPage() {
                   <th style={styles.th}>Tanggal</th>
                   <th style={styles.th}>Kebun / Unit</th>
                   <th style={styles.th}>Afdeling</th>
+                  <th style={styles.th}>Kode Blok</th>
                   <th style={styles.th}>Target (Ton)</th>
                   <th style={styles.th}>Aktual (Ton)</th>
                   <th style={styles.th}>Capaian (%)</th>
@@ -305,13 +323,13 @@ export default function ProduksiPage() {
               <tbody>
                 {loading ? (
                   <tr>
-                    <td colSpan={10} style={{ textAlign: 'center', padding: '32px', color: '#6f6f6f' }}>
+                    <td colSpan={11} style={{ textAlign: 'center', padding: '32px', color: '#6f6f6f' }}>
                       Memuat data produksi harian...
                     </td>
                   </tr>
                 ) : paginatedItems.length === 0 ? (
                   <tr>
-                    <td colSpan={10} style={{ textAlign: 'center', padding: '32px', color: '#6f6f6f', fontStyle: 'italic' }}>
+                    <td colSpan={11} style={{ textAlign: 'center', padding: '32px', color: '#6f6f6f', fontStyle: 'italic' }}>
                       Belum ada catatan produksi harian yang sesuai filter.
                     </td>
                   </tr>
@@ -325,6 +343,7 @@ export default function ProduksiPage() {
                         <td style={{ ...styles.td, fontWeight: '600' }}>{row.tanggal}</td>
                         <td style={styles.td}>{row.kebun || '-'}</td>
                         <td style={styles.td}>{row.afdeling || '-'}</td>
+                        <td style={styles.td}>{row.kode_blok || '-'}</td>
                         <td style={styles.td}>{row.target_harian_ton ? row.target_harian_ton.toLocaleString('id-ID') : '-'}</td>
                         <td style={{ ...styles.td, fontWeight: '700', color: '#24a148' }}>
                           {row.produksi_aktual_ton.toLocaleString('id-ID')} Ton
@@ -392,16 +411,7 @@ export default function ProduksiPage() {
       <ProduksiModal
         isOpen={isModalOpen}
         initialData={editingItem}
-        kebunAfdelingList={[
-          { kebun: 'Unit Bergen', afdeling: 'Afdeling I' },
-          { kebun: 'Unit Bergen', afdeling: 'Afdeling II' },
-          { kebun: 'Unit Bergen', afdeling: 'Afdeling III' },
-          { kebun: 'Unit Kedaton', afdeling: 'Afdeling A' },
-          { kebun: 'Unit Kedaton', afdeling: 'Afdeling B' },
-          { kebun: 'Unit Tulungbuyut', afdeling: 'Afdeling A' },
-          { kebun: 'Unit Way Berulu', afdeling: 'Afdeling I' },
-          { kebun: 'Unit Way Lima', afdeling: 'Afdeling I' },
-        ]}
+        blokList={blokList}
         onClose={() => setIsModalOpen(false)}
         onSubmit={handleFormSubmit}
       />

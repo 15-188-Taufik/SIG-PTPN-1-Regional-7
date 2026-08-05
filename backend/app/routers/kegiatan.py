@@ -432,15 +432,15 @@ def get_produksi(
 
     query = db.query(
         FactProduksiHarian,
-        DimUnit.nama_unit.label("kebun"),
-        DimAfdeling.nama_afdeling.label("afdeling")
-    ).join(DimAfdeling, FactProduksiHarian.id_afdeling == DimAfdeling.id_afdeling)\
-     .join(DimUnit, DimAfdeling.id_unit == DimUnit.id_unit)
+        BlokKebun.kebun.label("kebun"),
+        BlokKebun.afdeling.label("afdeling"),
+        BlokKebun.kode_blok.label("kode_blok")
+    ).join(BlokKebun, FactProduksiHarian.blok_id == BlokKebun.id)
 
     if kebun:
-        query = query.filter(DimUnit.nama_unit.ilike(f"%{kebun}%"))
+        query = query.filter(BlokKebun.kebun.ilike(f"%{kebun}%"))
     if afdeling:
-        query = query.filter(DimAfdeling.nama_afdeling.ilike(f"%{afdeling}%"))
+        query = query.filter(BlokKebun.afdeling.ilike(f"%{afdeling}%"))
     if start_date:
         query = query.filter(FactProduksiHarian.tanggal >= start_date)
     if end_date:
@@ -449,8 +449,9 @@ def get_produksi(
         search_fmt = f"%{search}%"
         query = query.filter(
             or_(
-                DimUnit.nama_unit.ilike(search_fmt),
-                DimAfdeling.nama_afdeling.ilike(search_fmt),
+                BlokKebun.kebun.ilike(search_fmt),
+                BlokKebun.afdeling.ilike(search_fmt),
+                BlokKebun.kode_blok.ilike(search_fmt),
             )
         )
 
@@ -461,19 +462,19 @@ def get_produksi(
         func.coalesce(func.sum(FactProduksiHarian.produksi_aktual_ton), 0.0).label("sum_aktual"),
         func.coalesce(func.sum(FactProduksiHarian.jumlah_pemanen_hk), 0).label("sum_pemanen")
     ).select_from(FactProduksiHarian)\
-     .join(DimAfdeling, FactProduksiHarian.id_afdeling == DimAfdeling.id_afdeling)\
-     .join(DimUnit, DimAfdeling.id_unit == DimUnit.id_unit)
+     .join(BlokKebun, FactProduksiHarian.blok_id == BlokKebun.id)
 
-    if kebun: metrics_query = metrics_query.filter(DimUnit.nama_unit.ilike(f"%{kebun}%"))
-    if afdeling: metrics_query = metrics_query.filter(DimAfdeling.nama_afdeling.ilike(f"%{afdeling}%"))
+    if kebun: metrics_query = metrics_query.filter(BlokKebun.kebun.ilike(f"%{kebun}%"))
+    if afdeling: metrics_query = metrics_query.filter(BlokKebun.afdeling.ilike(f"%{afdeling}%"))
     if start_date: metrics_query = metrics_query.filter(FactProduksiHarian.tanggal >= start_date)
     if end_date: metrics_query = metrics_query.filter(FactProduksiHarian.tanggal <= end_date)
     if search:
         search_fmt = f"%{search}%"
         metrics_query = metrics_query.filter(
             or_(
-                DimUnit.nama_unit.ilike(search_fmt),
-                DimAfdeling.nama_afdeling.ilike(search_fmt),
+                BlokKebun.kebun.ilike(search_fmt),
+                BlokKebun.afdeling.ilike(search_fmt),
+                BlokKebun.kode_blok.ilike(search_fmt),
             )
         )
 
@@ -487,13 +488,14 @@ def get_produksi(
     results = query.order_by(order_clause, FactProduksiHarian.id_fakta.desc()).offset(offset).limit(limit).all()
 
     items = []
-    for row, k_nama, a_nama in results:
+    for row, k_nama, a_nama, kb_kode in results:
         item = ProduksiHarianResponse(
             id_fakta=row.id_fakta,
+            blok_id=row.blok_id,
             tanggal=row.tanggal,
-            id_afdeling=row.id_afdeling,
             kebun=k_nama,
             afdeling=a_nama,
+            kode_blok=kb_kode,
             target_harian_ton=row.target_harian_ton or 0.0,
             produksi_aktual_ton=row.produksi_aktual_ton or 0.0,
             jumlah_pemanen_hk=row.jumlah_pemanen_hk or 0,
@@ -521,22 +523,14 @@ def create_produksi(
     if is_mock or db is None:
         raise HTTPException(status_code=400, detail="Database mode mock aktif")
 
-    afd_id = payload.id_afdeling
-    if not afd_id and payload.afdeling:
-        afd_row = db.query(DimAfdeling).join(DimUnit, DimAfdeling.id_unit == DimUnit.id_unit)\
-                    .filter(DimAfdeling.nama_afdeling.ilike(f"%{payload.afdeling}%")).first()
-        if afd_row:
-            afd_id = afd_row.id_afdeling
-        else:
-            afd_row_any = db.query(DimAfdeling).first()
-            if afd_row_any: afd_id = afd_row_any.id_afdeling
-
-    if not afd_id:
-        afd_id = 1
+    # Verify that blok_id exists
+    blok = db.query(BlokKebun).filter(BlokKebun.id == payload.blok_id).first()
+    if not blok:
+        raise HTTPException(status_code=404, detail=f"Blok ID {payload.blok_id} tidak ditemukan")
 
     item = FactProduksiHarian(
+        blok_id=payload.blok_id,
         tanggal=payload.tanggal,
-        id_afdeling=afd_id,
         target_harian_ton=payload.target_harian_ton,
         produksi_aktual_ton=payload.produksi_aktual_ton,
         jumlah_pemanen_hk=payload.jumlah_pemanen_hk,
@@ -547,15 +541,13 @@ def create_produksi(
     db.commit()
     db.refresh(item)
 
-    afd = db.query(DimAfdeling).filter(DimAfdeling.id_afdeling == item.id_afdeling).first()
-    unit = db.query(DimUnit).filter(DimUnit.id_unit == afd.id_unit).first() if afd else None
-
     return ProduksiHarianResponse(
         id_fakta=item.id_fakta,
+        blok_id=item.blok_id,
         tanggal=item.tanggal,
-        id_afdeling=item.id_afdeling,
-        kebun=unit.nama_unit if unit else payload.kebun,
-        afdeling=afd.nama_afdeling if afd else payload.afdeling,
+        kebun=blok.kebun,
+        afdeling=blok.afdeling,
+        kode_blok=blok.kode_blok,
         target_harian_ton=item.target_harian_ton,
         produksi_aktual_ton=item.produksi_aktual_ton,
         jumlah_pemanen_hk=item.jumlah_pemanen_hk,
@@ -578,6 +570,12 @@ def update_produksi(
     if not item:
         raise HTTPException(status_code=404, detail=f"Catatan produksi ID {id_fakta} tidak ditemukan")
 
+    # If updating blok_id, verify it exists
+    if payload.blok_id is not None:
+        blok_exists = db.query(BlokKebun).filter(BlokKebun.id == payload.blok_id).first()
+        if not blok_exists:
+            raise HTTPException(status_code=404, detail=f"Blok ID {payload.blok_id} tidak ditemukan")
+
     update_data = payload.model_dump(exclude_unset=True)
     for key, value in update_data.items():
         if hasattr(item, key):
@@ -586,15 +584,16 @@ def update_produksi(
     db.commit()
     db.refresh(item)
 
-    afd = db.query(DimAfdeling).filter(DimAfdeling.id_afdeling == item.id_afdeling).first()
-    unit = db.query(DimUnit).filter(DimUnit.id_unit == afd.id_unit).first() if afd else None
+    # Get block info for response
+    blok = db.query(BlokKebun).filter(BlokKebun.id == item.blok_id).first()
 
     return ProduksiHarianResponse(
         id_fakta=item.id_fakta,
+        blok_id=item.blok_id,
         tanggal=item.tanggal,
-        id_afdeling=item.id_afdeling,
-        kebun=unit.nama_unit if unit else payload.kebun,
-        afdeling=afd.nama_afdeling if afd else payload.afdeling,
+        kebun=blok.kebun if blok else None,
+        afdeling=blok.afdeling if blok else None,
+        kode_blok=blok.kode_blok if blok else None,
         target_harian_ton=item.target_harian_ton,
         produksi_aktual_ton=item.produksi_aktual_ton,
         jumlah_pemanen_hk=item.jumlah_pemanen_hk,

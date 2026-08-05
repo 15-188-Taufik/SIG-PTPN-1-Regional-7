@@ -359,10 +359,11 @@ export async function deletePemupukan(id: number): Promise<void> {
 
 export interface ProduksiItem {
   id_fakta: number;
+  blok_id: number;
   tanggal: string;
-  id_afdeling?: number;
   kebun?: string;
   afdeling?: string;
+  kode_blok?: string;
   target_harian_ton: number;
   produksi_aktual_ton: number;
   jumlah_pemanen_hk: number;

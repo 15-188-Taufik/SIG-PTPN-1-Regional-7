@@ -3,15 +3,17 @@
 import { useState, useEffect } from 'react';
 import { ProduksiItem } from '@/lib/api';
 
-interface KebunAfdelingOption {
+interface BlokOption {
+  id: number;
   kebun: string;
   afdeling: string;
+  kode_blok: string;
 }
 
 interface ProduksiModalProps {
   isOpen: boolean;
   initialData?: ProduksiItem | null;
-  kebunAfdelingList: KebunAfdelingOption[];
+  blokList: BlokOption[];
   onClose: () => void;
   onSubmit: (formData: any) => Promise<void>;
 }
@@ -19,7 +21,7 @@ interface ProduksiModalProps {
 export default function ProduksiModal({
   isOpen,
   initialData,
-  kebunAfdelingList,
+  blokList,
   onClose,
   onSubmit,
 }: ProduksiModalProps) {
@@ -27,9 +29,8 @@ export default function ProduksiModal({
   const [error, setError] = useState('');
 
   // Form states
+  const [blokId, setBlokId] = useState<number>(blokList[0]?.id || 1);
   const [tanggal, setTanggal] = useState<string>(new Date().toISOString().split('T')[0]);
-  const [selectedKebun, setSelectedKebun] = useState<string>('Unit Bergen');
-  const [selectedAfdeling, setSelectedAfdeling] = useState<string>('Afdeling I');
   const [targetTon, setTargetTon] = useState<string>('');
   const [aktualTon, setAktualTon] = useState<string>('');
   const [pemanenHk, setPemanenHk] = useState<string>('');
@@ -38,9 +39,8 @@ export default function ProduksiModal({
 
   useEffect(() => {
     if (initialData) {
+      setBlokId(initialData.blok_id);
       setTanggal(initialData.tanggal || new Date().toISOString().split('T')[0]);
-      if (initialData.kebun) setSelectedKebun(initialData.kebun);
-      if (initialData.afdeling) setSelectedAfdeling(initialData.afdeling);
       setTargetTon(initialData.target_harian_ton?.toString() || '');
       setAktualTon(initialData.produksi_aktual_ton?.toString() || '');
       setPemanenHk(initialData.jumlah_pemanen_hk?.toString() || '');
@@ -48,9 +48,8 @@ export default function ProduksiModal({
       setRendemenPersen(initialData.rendemen_persen?.toString() || '');
     } else {
       setTanggal(new Date().toISOString().split('T')[0]);
-      if (kebunAfdelingList.length > 0) {
-        setSelectedKebun(kebunAfdelingList[0].kebun);
-        setSelectedAfdeling(kebunAfdelingList[0].afdeling);
+      if (blokList.length > 0) {
+        setBlokId(blokList[0].id);
       }
       setTargetTon('');
       setAktualTon('');
@@ -59,13 +58,18 @@ export default function ProduksiModal({
       setRendemenPersen('');
     }
     setError('');
-  }, [initialData, isOpen, kebunAfdelingList]);
+  }, [initialData, isOpen, blokList]);
 
   if (!isOpen) return null;
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError('');
+
+    if (!blokId) {
+      setError('Pilih Blok Kebun terlebih dahulu');
+      return;
+    }
 
     if (!aktualTon || parseFloat(aktualTon) < 0) {
       setError('Produksi Aktual wajib diisi angka non-negatif');
@@ -75,9 +79,8 @@ export default function ProduksiModal({
     setSubmitting(true);
     try {
       await onSubmit({
+        blok_id: Number(blokId),
         tanggal,
-        kebun: selectedKebun,
-        afdeling: selectedAfdeling,
         target_harian_ton: targetTon ? parseFloat(targetTon) : 0.0,
         produksi_aktual_ton: parseFloat(aktualTon),
         jumlah_pemanen_hk: pemanenHk ? parseInt(pemanenHk, 10) : 0,
@@ -107,30 +110,21 @@ export default function ProduksiModal({
 
         {/* Form Body */}
         <form onSubmit={handleSubmit} style={styles.formBody}>
-          {/* Kebun & Afdeling Row */}
-          <div style={styles.fieldRow}>
-            <div style={{ flex: 1 }}>
-              <label style={styles.label}>Kebun / Unit *</label>
-              <input
-                type="text"
-                value={selectedKebun}
-                onChange={(e) => setSelectedKebun(e.target.value)}
-                placeholder="Contoh: Unit Bergen"
-                style={styles.input}
-                required
-              />
-            </div>
-            <div style={{ flex: 1 }}>
-              <label style={styles.label}>Afdeling *</label>
-              <input
-                type="text"
-                value={selectedAfdeling}
-                onChange={(e) => setSelectedAfdeling(e.target.value)}
-                placeholder="Contoh: Afdeling I"
-                style={styles.input}
-                required
-              />
-            </div>
+          {/* Pilih Blok Kebun */}
+          <div style={styles.field}>
+            <label style={styles.label}>Pilih Blok Kebun *</label>
+            <select
+              value={blokId}
+              onChange={(e) => setBlokId(Number(e.target.value))}
+              style={styles.input}
+              required
+            >
+              {blokList.map((b) => (
+                <option key={b.id} value={b.id}>
+                  {b.kebun} — {b.afdeling} — Blok {b.kode_blok || b.id}
+                </option>
+              ))}
+            </select>
           </div>
 
           {/* Tanggal */}

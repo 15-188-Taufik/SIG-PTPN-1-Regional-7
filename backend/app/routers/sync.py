@@ -184,26 +184,23 @@ def sync_webhook(
                 if "rendeman_persen" in raw_row and "rendemen_persen" not in raw_row:
                     raw_row["rendemen_persen"] = raw_row["rendeman_persen"]
 
-                # Validasi dengan schema Pydantic
                 row_data = ProduksiHarianRow(**raw_row)
                 row_id = getattr(row_data, "id_fakta", None)
                 
-                # Gunakan id_afdeling langsung jika dikirim dari sheet, jika tidak cari berdasarkan kebun & afdeling
-                id_afdeling = getattr(row_data, "id_afdeling", None)
-                if not id_afdeling:
-                    kebun_val = getattr(row_data, "kebun", None)
-                    afdeling_val = getattr(row_data, "afdeling", None)
-                    if kebun_val and afdeling_val:
-                        id_afdeling = get_afdeling_id(db, kebun_val, afdeling_val)
+                # Gunakan blok_id langsung jika ada di sheet, jika tidak lakukan lookup
+                blok_id = getattr(row_data, "blok_id", None)
+                if not blok_id:
+                    blok_id = get_blok_id(db, row_data.kebun, row_data.afdeling, row_data.no_polygon, row_data.kode_blok)
                 
-                if not id_afdeling:
-                    errors.append(f"Baris {row_num}: Kolom id_afdeling kosong atau tidak valid.")
+                if not blok_id:
+                    kode_blok_val = getattr(row_data, "kode_blok", "") or ""
+                    errors.append(f"Baris {row_num}: Blok dengan ID/Kode Blok '{kode_blok_val}' tidak ditemukan di tabel blok_kebun.")
                     continue
                 
-                # Cek apakah id_afdeling terdaftar di database untuk mencegah ForeignKeyViolation
-                afd_exists = db.query(DimAfdeling).filter(DimAfdeling.id_afdeling == id_afdeling).first()
-                if not afd_exists:
-                    errors.append(f"Baris {row_num}: ID Afdeling '{id_afdeling}' tidak ditemukan di database.")
+                # Cek apakah blok_id terdaftar di database untuk mencegah ForeignKeyViolation
+                blok_exists = db.query(BlokKebun).filter(BlokKebun.id == blok_id).first()
+                if not blok_exists:
+                    errors.append(f"Baris {row_num}: Blok ID '{blok_id}' tidak ditemukan di tabel blok_kebun.")
                     continue
 
                 # Konversi dan defaultkan nilai jika None untuk mencegah error NOT NULL constraint di DB
@@ -218,7 +215,7 @@ def sync_webhook(
                     existing = db.query(FactProduksiHarian).filter(FactProduksiHarian.id_fakta == row_id).first()
                     if existing:
                         existing.tanggal = row_data.tanggal
-                        existing.id_afdeling = id_afdeling
+                        existing.blok_id = blok_id
                         existing.target_harian_ton = target_ton
                         existing.produksi_aktual_ton = prod_ton
                         existing.jumlah_pemanen_hk = pemanen_hk
@@ -233,7 +230,7 @@ def sync_webhook(
                     # Lakukan UPSERT ke fact_produksi_harian
                     stmt = insert(FactProduksiHarian).values(
                         tanggal=row_data.tanggal,
-                        id_afdeling=id_afdeling,
+                        blok_id=blok_id,
                         target_harian_ton=target_ton,
                         produksi_aktual_ton=prod_ton,
                         jumlah_pemanen_hk=pemanen_hk,
@@ -241,7 +238,7 @@ def sync_webhook(
                         rendemen_persen=rendemen
                     )
                     stmt = stmt.on_conflict_do_update(
-                        constraint="uq_produksi_afdeling_tanggal",
+                        constraint="uq_produksi_blok_tanggal",
                         set_={
                             "target_harian_ton": stmt.excluded.target_harian_ton,
                             "produksi_aktual_ton": stmt.excluded.produksi_aktual_ton,
