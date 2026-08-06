@@ -12,6 +12,8 @@ class Settings(BaseSettings):
     CORS_ORIGINS: str = '["http://localhost:3000"]'
     ADMIN_USERNAME: str = "ptpnr7"
     ADMIN_PASSWORD: str = "lampung2024"
+    USER_USERNAME: str = "ptpn_eksekutif"
+    USER_PASSWORD: str = "eksekutif2026"
     SYNC_API_KEY: str = "ptpn7-secret-sync-key-2026"
 
     def get_cors_origins(self) -> List[str]:

@@ -5,6 +5,7 @@ import * as maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import { FeatureCollection, GeoJSONFeature } from '@/types/kebun';
 import * as turf from '@turf/turf';
+import { KEBUN_COLORS, getKebunColor } from '@/lib/colors';
 
 export type ViewMode = 'default' | 'productivity' | 'age' | 'density';
 export type HeightMetric = 'protas' | 'sph' | 'umur';
@@ -22,16 +23,6 @@ interface Map3DViewProps {
   zoomRequest?: { kebun: string; timestamp: number } | null;
 }
 
-const KEBUN_COLORS: Record<string, string> = {
-  'Unit Way Berulu': '#0072B2',   // Biru
-  'Unit Bergen': '#009E73',       // Hijau Kebiruan
-  'Unit Way Lima': '#CC79A7',     // Merah Muda Keunguan
-  'Unit Tulungbuyut': '#E69F00',  // Jingga
-  'Unit Kedaton': '#56B4E9',      // Biru Langit
-  'Unit Ketahun': '#D55E00',      // Merah Jingga / Vermillion
-  'Unit Padang Pelawi': '#8B1A4A', // Merah Tua / Burgundy
-};
-
 const FOUR_COLOR_PALETTE = [
   '#0F62FE', // Biru
   '#24A148', // Hijau
@@ -39,37 +30,14 @@ const FOUR_COLOR_PALETTE = [
   '#F5A623', // Amber / Yellow
 ];
 
+import { normalizeKebunName } from '@/lib/api';
+
 function getKebunDisplayName(name: string | null): string {
   if (!name) return '-';
-  const norm = name.trim();
-  const lower = norm.toLowerCase();
-  if (lower === 'wabe' || lower === 'unit bekri') return 'Unit Way Berulu';
-  if (lower === 'wali' || lower === 'unit rejosari') return 'Unit Way Lima';
-  if (lower === 'tubu') return 'Unit Tulungbuyut';
-  return norm;
+  return normalizeKebunName(name) || '-';
 }
 
-function getKebunColor(kebun: string | null): string {
-  if (!kebun) return '#848684';
-  const key = Object.keys(KEBUN_COLORS).find(
-    (k) => k.toLowerCase() === kebun.toLowerCase()
-  );
-  if (key) return KEBUN_COLORS[key];
-  
-  // Consistent color generation using string hashing for new gardens (32+ kebun support)
-  let hash = 0;
-  for (let i = 0; i < kebun.length; i++) {
-    hash = kebun.charCodeAt(i) + ((hash << 5) - hash);
-  }
-  const colors = [
-    '#393b79', '#5254a3', '#6b6ecf', '#9c9ede', '#637939', '#8ca252', '#b5cf6b', '#cedb9c',
-    '#8c6d31', '#bd9e39', '#e7ba52', '#e7cb94', '#843c39', '#ad494a', '#d6616b', '#e7969c',
-    '#7b4173', '#a55194', '#ce6dbd', '#de9ed6', '#3182bd', '#6baed6', '#9ecae1', '#c6dbef',
-    '#e6550d', '#fd8d3c', '#fdae6b', '#fdd0a2', '#31a354', '#74c476', '#a1d99b', '#c7e9c0'
-  ];
-  const idx = Math.abs(hash) % colors.length;
-  return colors[idx];
-}
+
 
 function getFeatureColor(
   feature: GeoJSONFeature,

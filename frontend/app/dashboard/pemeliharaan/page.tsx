@@ -7,6 +7,8 @@ import KegiatanModal from '@/components/KegiatanModal';
 import MultiSelectDropdown from '@/components/MultiSelectDropdown';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
+import { utils, writeFile } from 'xlsx';
+import { isAuthenticated, getUserRole } from '@/lib/auth';
 import {
   fetchPemeliharaanList,
   createPemeliharaan,
@@ -17,7 +19,7 @@ import {
   PemeliharaanItem,
   PemeliharaanListResponse,
 } from '@/lib/api';
-import { isAuthenticated } from '@/lib/auth';
+
 
 export default function PemeliharaanPage() {
   const router = useRouter();
@@ -54,11 +56,18 @@ export default function PemeliharaanPage() {
   const [editingItem, setEditingItem] = useState<PemeliharaanItem | null>(null);
 
   // Authentication check
+  const [role, setRole] = useState<string | null>(null);
+  const [showExportMenu, setShowExportMenu] = useState(false);
+
   useEffect(() => {
     if (!isAuthenticated()) {
       router.replace('/login');
+    } else {
+      setRole(getUserRole());
     }
   }, [router]);
+
+  const isAdmin = role === 'admin';
 
   // Load Kebuns & Bloks for dropdowns
   useEffect(() => {
@@ -246,6 +255,34 @@ export default function PemeliharaanPage() {
     }
   }
 
+  function handleExportExcel() {
+    try {
+      const rows = data.items.map((row, idx) => ({
+        'No': idx + 1,
+        'Tanggal': row.tanggal,
+        'Kebun / Unit': row.kebun || '-',
+        'Afdeling': row.afdeling || '-',
+        'Kode Blok': row.kode_blok || '-',
+        'Jenis Kegiatan': row.jenis_kegiatan || '-',
+        'Bahan / Material': row.material || '-',
+        'Dosis': row.dosis_aplikasi != null ? row.dosis_aplikasi : 0,
+        'Luas Aplikasi (Ha)': row.luas_aplikasi != null ? row.luas_aplikasi : 0,
+        'Tenaga Kerja (HK)': row.tenaga_kerja != null ? row.tenaga_kerja : 0,
+        'Keterangan': row.keterangan || '-'
+      }));
+
+      const ws = utils.json_to_sheet(rows);
+      const wb = utils.book_new();
+      utils.book_append_sheet(wb, ws, 'Pemeliharaan Harian');
+      
+      const dateStr = new Date().toISOString().slice(0, 10);
+      writeFile(wb, `Laporan_Pemeliharaan_Harian_${dateStr}.xlsx`);
+    } catch (err) {
+      console.error('Error exporting to Excel:', err);
+      alert('Gagal mengekspor data ke Excel.');
+    }
+  }
+
   function handleResetFilters() {
     setSelectedKebuns([]);
     setSelectedAfdeling('');
@@ -371,13 +408,76 @@ export default function PemeliharaanPage() {
               />
             </div>
 
-            <div style={{ display: 'flex', alignItems: 'flex-end', gap: '8px' }}>
+            <div style={{ display: 'flex', alignItems: 'flex-end', gap: '8px', position: 'relative' }}>
               <button onClick={handleResetFilters} style={styles.btnSecondary}>
                 Reset
               </button>
-              <button onClick={handleExportPDF} style={styles.btnPrimary}>
-                Ekspor PDF
-              </button>
+              <div style={{ position: 'relative' }}>
+                <button
+                  onClick={() => setShowExportMenu(!showExportMenu)}
+                  style={styles.btnPrimary}
+                >
+                  Ekspor Laporan &#9662;
+                </button>
+                {showExportMenu && (
+                  <div style={{
+                    position: 'absolute',
+                    top: '100%',
+                    right: 0,
+                    marginTop: '4px',
+                    background: '#ffffff',
+                    border: '1px solid #e0e0e0',
+                    boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+                    borderRadius: '2px',
+                    zIndex: 1000,
+                    minWidth: '150px',
+                    display: 'flex',
+                    flexDirection: 'column'
+                  }}>
+                    <button
+                      onClick={() => {
+                        setShowExportMenu(false);
+                        handleExportPDF();
+                      }}
+                      style={{
+                        background: 'none',
+                        border: 'none',
+                        textAlign: 'left',
+                        padding: '8px 12px',
+                        fontSize: '12px',
+                        cursor: 'pointer',
+                        color: '#161616',
+                        width: '100%'
+                      }}
+                      onMouseEnter={(e) => (e.currentTarget.style.background = '#f4f4f4')}
+                      onMouseLeave={(e) => (e.currentTarget.style.background = 'none')}
+                    >
+                      Unduh PDF (.pdf)
+                    </button>
+                    <button
+                      onClick={() => {
+                        setShowExportMenu(false);
+                        handleExportExcel();
+                      }}
+                      style={{
+                        background: 'none',
+                        border: 'none',
+                        textAlign: 'left',
+                        padding: '8px 12px',
+                        fontSize: '12px',
+                        cursor: 'pointer',
+                        color: '#161616',
+                        width: '100%',
+                        borderTop: '1px solid #e0e0e0'
+                      }}
+                      onMouseEnter={(e) => (e.currentTarget.style.background = '#f4f4f4')}
+                      onMouseLeave={(e) => (e.currentTarget.style.background = 'none')}
+                    >
+                      Unduh Excel (.xlsx)
+                    </button>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         </div>

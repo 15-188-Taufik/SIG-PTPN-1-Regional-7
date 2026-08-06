@@ -7,6 +7,7 @@ import ProduksiModal from '@/components/ProduksiModal';
 import MultiSelectDropdown from '@/components/MultiSelectDropdown';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
+import { utils, writeFile } from 'xlsx';
 import {
   fetchProduksiList,
   createProduksi,
@@ -31,6 +32,7 @@ export default function ProduksiPage() {
     total_pemanen: 0,
     items: [],
   });
+  const [showExportMenu, setShowExportMenu] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
@@ -248,6 +250,37 @@ export default function ProduksiPage() {
     }
   }
 
+  function handleExportExcel() {
+    try {
+      const rows = data.items.map((row, idx) => {
+        const capaian = row.target_harian_ton > 0 ? (row.produksi_aktual_ton / row.target_harian_ton) * 100 : 0;
+        return {
+          'No': idx + 1,
+          'Tanggal': row.tanggal,
+          'Kebun / Unit': row.kebun || '-',
+          'Afdeling': row.afdeling || '-',
+          'Kode Blok': row.kode_blok || '-',
+          'Target (Ton)': row.target_harian_ton || 0,
+          'Aktual (Ton)': row.produksi_aktual_ton || 0,
+          'Capaian (%)': capaian > 0 ? parseFloat(capaian.toFixed(1)) : 0,
+          'Tenaga Kerja (HK)': row.jumlah_pemanen_hk || 0,
+          'Curah Hujan (mm)': row.curah_hujan_mm || 0,
+          'Rendemen (%)': row.rendemen_persen || 0
+        };
+      });
+
+      const ws = utils.json_to_sheet(rows);
+      const wb = utils.book_new();
+      utils.book_append_sheet(wb, ws, 'Produksi Harian');
+      
+      const dateStr = new Date().toISOString().slice(0, 10);
+      writeFile(wb, `Laporan_Produksi_Harian_${dateStr}.xlsx`);
+    } catch (err) {
+      console.error('Error exporting to Excel:', err);
+      alert('Gagal mengekspor data ke Excel.');
+    }
+  }
+
   function handleResetFilters() {
     setSelectedKebuns([]);
     setSelectedAfdeling('');
@@ -380,13 +413,76 @@ export default function ProduksiPage() {
               />
             </div>
 
-            <div style={{ display: 'flex', alignItems: 'flex-end', gap: '8px' }}>
+            <div style={{ display: 'flex', alignItems: 'flex-end', gap: '8px', position: 'relative' }}>
               <button onClick={handleResetFilters} style={styles.btnSecondary}>
                 Reset
               </button>
-              <button onClick={handleExportPDF} style={styles.btnPrimary}>
-                Ekspor PDF
-              </button>
+              <div style={{ position: 'relative' }}>
+                <button
+                  onClick={() => setShowExportMenu(!showExportMenu)}
+                  style={styles.btnPrimary}
+                >
+                  Ekspor Laporan &#9662;
+                </button>
+                {showExportMenu && (
+                  <div style={{
+                    position: 'absolute',
+                    top: '100%',
+                    right: 0,
+                    marginTop: '4px',
+                    background: '#ffffff',
+                    border: '1px solid #e0e0e0',
+                    boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+                    borderRadius: '2px',
+                    zIndex: 1000,
+                    minWidth: '150px',
+                    display: 'flex',
+                    flexDirection: 'column'
+                  }}>
+                    <button
+                      onClick={() => {
+                        setShowExportMenu(false);
+                        handleExportPDF();
+                      }}
+                      style={{
+                        background: 'none',
+                        border: 'none',
+                        textAlign: 'left',
+                        padding: '8px 12px',
+                        fontSize: '12px',
+                        cursor: 'pointer',
+                        color: '#161616',
+                        width: '100%'
+                      }}
+                      onMouseEnter={(e) => (e.currentTarget.style.background = '#f4f4f4')}
+                      onMouseLeave={(e) => (e.currentTarget.style.background = 'none')}
+                    >
+                      Unduh PDF (.pdf)
+                    </button>
+                    <button
+                      onClick={() => {
+                        setShowExportMenu(false);
+                        handleExportExcel();
+                      }}
+                      style={{
+                        background: 'none',
+                        border: 'none',
+                        textAlign: 'left',
+                        padding: '8px 12px',
+                        fontSize: '12px',
+                        cursor: 'pointer',
+                        color: '#161616',
+                        width: '100%',
+                        borderTop: '1px solid #e0e0e0'
+                      }}
+                      onMouseEnter={(e) => (e.currentTarget.style.background = '#f4f4f4')}
+                      onMouseLeave={(e) => (e.currentTarget.style.background = 'none')}
+                    >
+                      Unduh Excel (.xlsx)
+                    </button>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         </div>

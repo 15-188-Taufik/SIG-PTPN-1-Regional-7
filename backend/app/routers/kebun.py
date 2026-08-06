@@ -677,6 +677,8 @@ async def upload_geojson(
     db: Session = Depends(get_db),
     _user: dict = Depends(get_current_user),
 ):
+    if _user.get("role") != "admin":
+        raise HTTPException(status_code=403, detail="Akses ditolak. Peran Anda tidak memiliki izin untuk memodifikasi data.")
     try:
         content = await file.read()
         geojson_data = json.loads(content.decode("utf-8"))

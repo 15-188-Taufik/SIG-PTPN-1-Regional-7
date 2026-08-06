@@ -3,23 +3,14 @@
 import { useState, useEffect, useCallback } from 'react';
 import { StatsResponse, GeoJSONFeature, FeatureCollection } from '@/types/kebun';
 import { ViewMode } from './MapView';
+import { getUserRole } from '@/lib/auth';
 
-const KEBUN_COLORS: Record<string, string> = {
-  'Unit Way Berulu': '#0072B2',
-  'Unit Bergen': '#009E73',
-  'Unit Way Lima': '#CC79A7',
-  'Unit Tulungbuyut': '#E69F00',
-  'Unit Kedaton': '#56B4E9',
-};
+import { KEBUN_COLORS, getKebunColor } from '@/lib/colors';
+import { normalizeKebunName } from '@/lib/api';
 
 export function getKebunDisplayName(name: string | null): string {
   if (!name) return '-';
-  const norm = name.trim();
-  const lower = norm.toLowerCase();
-  if (lower === 'wabe' || lower === 'unit bekri') return 'Unit Way Berulu';
-  if (lower === 'wali' || lower === 'unit rejosari') return 'Unit Way Lima';
-  if (lower === 'tubu') return 'Unit Tulungbuyut';
-  return norm;
+  return normalizeKebunName(name) || '-';
 }
 
 interface SidePanelProps {
@@ -79,6 +70,11 @@ export default function SidePanel({
   onToggle3DMode,
 }: SidePanelProps) {
   const [activeTab, setActiveTab] = useState<'filter' | 'alerts' | 'upload'>('filter');
+  const [role, setRole] = useState<string | null>(null);
+  useEffect(() => {
+    setRole(getUserRole());
+  }, []);
+  const isAdmin = role === 'admin';
   const [width, setWidth] = useState(300);
   const [isResizing, setIsResizing] = useState(false);
 
@@ -340,32 +336,34 @@ export default function SidePanel({
                 </span>
               )}
             </button>
-            <button
-              onClick={() => {
-                setActiveTab('upload');
-                setUploadResult(null);
-              }}
-              style={{
-                flex: 1,
-                padding: '12px 6px',
-                background: activeTab === 'upload' ? '#ffffff' : '#f4f4f4',
-                border: 'none',
-                borderBottom: activeTab === 'upload' ? '3px solid var(--cds-primary)' : '3px solid transparent',
-                color: activeTab === 'upload' ? 'var(--cds-text-primary)' : 'var(--cds-text-secondary)',
-                fontSize: '11px',
-                fontWeight: '600',
-                textTransform: 'uppercase',
-                letterSpacing: '0.02em',
-                cursor: 'pointer',
-                fontFamily: 'inherit',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: '4px',
-              }}
-            >
-              Upload Data
-            </button>
+            {isAdmin && (
+              <button
+                onClick={() => {
+                  setActiveTab('upload');
+                  setUploadResult(null);
+                }}
+                style={{
+                  flex: 1,
+                  padding: '12px 6px',
+                  background: activeTab === 'upload' ? '#ffffff' : '#f4f4f4',
+                  border: 'none',
+                  borderBottom: activeTab === 'upload' ? '3px solid var(--cds-primary)' : '3px solid transparent',
+                  color: activeTab === 'upload' ? 'var(--cds-text-primary)' : 'var(--cds-text-secondary)',
+                  fontSize: '11px',
+                  fontWeight: '600',
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.02em',
+                  cursor: 'pointer',
+                  fontFamily: 'inherit',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '4px',
+                }}
+              >
+                Upload Data
+              </button>
+            )}
           </div>
 
           {/* Panel Content Area */}
@@ -687,32 +685,147 @@ export default function SidePanel({
 
 
                 {/* Stats Summary Tile */}
-                {stats && (
-                  <div>
-                    <div style={sectionLabel}>Ringkasan Kebun</div>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                      <StatMini
-                        label="Total Blok"
-                        value={stats.total_blok.toLocaleString('id-ID')}
-                        color="#006A4E"
-                      />
-                      <StatMini
-                        label="Luas GIS"
-                        value={`${stats.total_luas_gis.toLocaleString('id-ID', {
-                          maximumFractionDigits: 1,
-                        })} Ha`}
-                        color="#0F62FE"
-                      />
-                      <StatMini
-                        label="Luas RKAP"
-                        value={`${stats.total_luas_rkap.toLocaleString('id-ID', {
-                          maximumFractionDigits: 1,
-                        })} Ha`}
-                        color="#24A148"
-                      />
+                {stats && (() => {
+                  const activeFeatures = geojsonData?.features || [];
+
+                  // Group by kebun and afdeling
+                  const kebunAfdMap: Record<string, Record<string, { total_blocks: number; total_luas_gis: number; total_luas_rkap: number }>> = {};
+                  
+                  activeFeatures.forEach((feat) => {
+                    const k = feat.properties.kebun || 'Unknown';
+                    const afd = feat.properties.afdeling || 'Unknown';
+                    
+                    if (!kebunAfdMap[k]) {
+                      kebunAfdMap[k] = {};
+                    }
+                    if (!kebunAfdMap[k][afd]) {
+                      kebunAfdMap[k][afd] = { total_blocks: 0, total_luas_gis: 0, total_luas_rkap: 0 };
+                    }
+                    
+                    kebunAfdMap[k][afd].total_blocks += 1;
+                    kebunAfdMap[k][afd].total_luas_gis += feat.properties.l_gis || 0;
+                    kebunAfdMap[k][afd].total_luas_rkap += feat.properties.l_rkap || 0;
+                  });
+
+                  // Overall Totals
+                  const uniqueKebuns = Object.keys(kebunAfdMap);
+                  const totalKebunsCount = uniqueKebuns.length;
+
+                  let totalAfdCount = 0;
+                  let totalLuasGis = 0;
+                  let totalLuasRkap = 0;
+
+                  Object.values(kebunAfdMap).forEach((afdGroup) => {
+                    totalAfdCount += Object.keys(afdGroup).length;
+                    Object.values(afdGroup).forEach((data) => {
+                      totalLuasGis += data.total_luas_gis;
+                      totalLuasRkap += data.total_luas_rkap;
+                    });
+                  });
+
+                  // Setup layout based on detailLevel
+                  let card1Label = "Total Blok";
+                  let card1Value = activeFeatures.length.toLocaleString('id-ID');
+                  
+                  if (detailLevel === 'afdeling') {
+                    card1Label = "Total Afdeling";
+                    card1Value = totalAfdCount.toLocaleString('id-ID');
+                  } else if (detailLevel === 'kebun') {
+                    card1Label = "Total Kebun";
+                    card1Value = totalKebunsCount.toLocaleString('id-ID');
+                  }
+
+                  return (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '14px', marginTop: '10px' }}>
+                      <div>
+                        <div style={sectionLabel}>Ringkasan {detailLevel === 'block' ? 'Blok' : detailLevel === 'afdeling' ? 'Afdeling' : 'Kebun'}</div>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                          <StatMini
+                            label={card1Label}
+                            value={card1Value}
+                            color="#006A4E"
+                          />
+                          <StatMini
+                            label="Luas GIS"
+                            value={`${totalLuasGis.toLocaleString('id-ID', { maximumFractionDigits: 1 })} Ha`}
+                            color="#0F62FE"
+                          />
+                          <StatMini
+                            label="Luas RKAP"
+                            value={`${totalLuasRkap.toLocaleString('id-ID', { maximumFractionDigits: 1 })} Ha`}
+                            color="#24A148"
+                          />
+                        </div>
+                      </div>
+
+                      {/* Dynamic Detail Breakdown */}
+                      {detailLevel === 'afdeling' && (
+                        <div style={{ background: '#f4f4f4', padding: '12px', border: '1px solid #e0e0e0', marginTop: '4px' }}>
+                          <div style={{ fontSize: '11px', fontWeight: '700', color: '#525252', textTransform: 'uppercase', marginBottom: '8px' }}>
+                            Rincian Afdeling
+                          </div>
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', maxHeight: '200px', overflowY: 'auto' }}>
+                            {Object.entries(kebunAfdMap).map(([kebunName, afdGroup]) => (
+                              Object.entries(afdGroup).map(([afdName, data]) => {
+                                const displayName = getKebunDisplayName(kebunName);
+                                return (
+                                  <div key={`${kebunName}_${afdName}`} style={{ paddingBottom: '6px', borderBottom: '1px solid #e0e0e0', fontSize: '12px', display: 'flex', alignItems: 'center' }}>
+                                    <div style={{ fontWeight: '600', color: '#161616', flex: 1 }}>
+                                      {displayName} &middot; Afd {afdName}
+                                    </div>
+                                    <div style={{ fontSize: '11px', color: '#525252', display: 'flex', gap: '8px', width: '130px', justifyContent: 'flex-end' }}>
+                                      <span style={{ width: '50px', textAlign: 'right' }}><strong>{data.total_blocks}</strong> Blok</span>
+                                      <span style={{ width: '70px', textAlign: 'right' }}><strong>{data.total_luas_gis.toLocaleString('id-ID', { maximumFractionDigits: 1 })}</strong> Ha</span>
+                                    </div>
+                                  </div>
+                                );
+                              })
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {detailLevel === 'kebun' && (
+                        <div style={{ background: '#f4f4f4', padding: '12px', border: '1px solid #e0e0e0', marginTop: '4px' }}>
+                          <div style={{ fontSize: '11px', fontWeight: '700', color: '#525252', textTransform: 'uppercase', marginBottom: '8px' }}>
+                            Rincian Kebun & Afdeling
+                          </div>
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', maxHeight: '240px', overflowY: 'auto' }}>
+                            {Object.entries(kebunAfdMap).map(([kebunName, afdGroup]) => {
+                              const displayName = getKebunDisplayName(kebunName);
+                              let kebunTotalBlocks = 0;
+                              let kebunTotalLuasGis = 0;
+                              Object.values(afdGroup).forEach(a => {
+                                kebunTotalBlocks += a.total_blocks;
+                                kebunTotalLuasGis += a.total_luas_gis;
+                              });
+
+                              return (
+                                <div key={kebunName} style={{ borderBottom: '1px solid #d1d1d1', paddingBottom: '8px' }}>
+                                  <div style={{ fontWeight: '700', color: getKebunColor(displayName), fontSize: '12px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                    <span style={{ flex: 1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{displayName}</span>
+                                    <span style={{ fontSize: '11px', fontWeight: '600', color: '#525252', width: '130px', textAlign: 'right' }}>
+                                      {kebunTotalBlocks} Blok ({kebunTotalLuasGis.toLocaleString('id-ID', { maximumFractionDigits: 1 })} Ha)
+                                    </span>
+                                  </div>
+                                  <div style={{ marginLeft: '10px', marginTop: '4px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                                    {Object.entries(afdGroup).map(([afdName, data]) => (
+                                      <div key={afdName} style={{ display: 'flex', alignItems: 'center', fontSize: '11px', color: '#525252' }}>
+                                        <span style={{ flex: 1 }}>&bull; Afd {afdName}</span>
+                                        <span style={{ width: '55px', textAlign: 'right', fontWeight: '500' }}>{data.total_blocks} Blok</span>
+                                        <span style={{ width: '65px', textAlign: 'right', fontWeight: '500' }}>{data.total_luas_gis.toLocaleString('id-ID', { maximumFractionDigits: 1 })} Ha</span>
+                                      </div>
+                                    ))}
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      )}
                     </div>
-                  </div>
-                )}
+                  );
+                })()}
 
 
 
@@ -892,7 +1005,7 @@ export default function SidePanel({
               );
             })()}
 
-            {activeTab === 'upload' && (
+            {isAdmin && activeTab === 'upload' && (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
                 <div style={{ fontSize: '14px', fontWeight: '600', color: 'var(--cds-text-primary)' }}>
                   Unggah Data Baru (.geojson)

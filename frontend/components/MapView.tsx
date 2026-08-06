@@ -5,18 +5,9 @@ import type { Map as LeafletMap } from 'leaflet';
 import type { GeoJSONFeature, FeatureCollection } from '@/types/kebun';
 import * as turf from '@turf/turf';
 import CarbonLoader from './CarbonLoader';
+import { KEBUN_COLORS, getKebunColor } from '@/lib/colors';
 
 export type ViewMode = 'default' | 'productivity' | 'age' | 'density';
-
-const KEBUN_COLORS: Record<string, string> = {
-  'Unit Way Berulu': '#0072B2',   // Biru
-  'Unit Bergen': '#009E73',       // Hijau Kebiruan
-  'Unit Way Lima': '#CC79A7',     // Merah Muda Keunguan
-  'Unit Tulungbuyut': '#E69F00',  // Jingga
-  'Unit Kedaton': '#56B4E9',      // Biru Langit
-  'Unit Ketahun': '#D55E00',      // Merah Jingga / Vermillion
-  'Unit Padang Pelawi': '#8B1A4A', // Merah Tua / Burgundy
-};
 
 const FOUR_COLOR_PALETTE = [
   '#0F62FE', // Biru
@@ -121,37 +112,14 @@ function dissolveFeaturesCleanly(features: any[]): any {
   }
 }
 
+import { normalizeKebunName } from '@/lib/api';
+
 export function getKebunDisplayName(name: string | null): string {
   if (!name) return '-';
-  const norm = name.trim();
-  const lower = norm.toLowerCase();
-  if (lower === 'wabe' || lower === 'unit bekri') return 'Unit Way Berulu';
-  if (lower === 'wali' || lower === 'unit rejosari') return 'Unit Way Lima';
-  if (lower === 'tubu') return 'Unit Tulungbuyut';
-  return norm;
+  return normalizeKebunName(name) || '-';
 }
 
-function getKebunColor(kebun: string | null): string {
-  if (!kebun) return '#848684';
-  const key = Object.keys(KEBUN_COLORS).find(
-    (k) => k.toLowerCase() === kebun.toLowerCase()
-  );
-  if (key) return KEBUN_COLORS[key];
-  
-  // Consistent color generation using string hashing for new gardens (32+ kebun support)
-  let hash = 0;
-  for (let i = 0; i < kebun.length; i++) {
-    hash = kebun.charCodeAt(i) + ((hash << 5) - hash);
-  }
-  const colors = [
-    '#393b79', '#5254a3', '#6b6ecf', '#9c9ede', '#637939', '#8ca252', '#b5cf6b', '#cedb9c',
-    '#8c6d31', '#bd9e39', '#e7ba52', '#e7cb94', '#843c39', '#ad494a', '#d6616b', '#e7969c',
-    '#7b4173', '#a55194', '#ce6dbd', '#de9ed6', '#3182bd', '#6baed6', '#9ecae1', '#c6dbef',
-    '#e6550d', '#fd8d3c', '#fdae6b', '#fdd0a2', '#31a354', '#74c476', '#a1d99b', '#c7e9c0'
-  ];
-  const idx = Math.abs(hash) % colors.length;
-  return colors[idx];
-}
+
 
 function getColorName(hex: string): string {
   const norm = hex.toUpperCase();
@@ -591,7 +559,10 @@ export default function MapView({
                       Ket: <span style="color: var(--cds-primary); font-weight: 700;">${p.keterangan}</span>
                     </div>
                     ` : ''}
-                    ${region ? `<div style="font-size: 10px; color: #8d8d8d; border-top: 1px solid #e0e0e0; padding-top: 3px; margin-top: 3px;">${region}</div>` : ''}
+                    <div style="font-size: 10px; color: #8d8d8d; border-top: 1px solid #e0e0e0; padding-top: 3px; margin-top: 3px;">
+                      Luas GIS Blok: ${p.l_gis ? p.l_gis.toLocaleString('id-ID', { maximumFractionDigits: 2 }) : 0} Ha
+                    </div>
+                    ${region ? `<div style="font-size: 10px; color: #8d8d8d; border-top: 1px solid #cbd5e1; padding-top: 3px; margin-top: 3px;">${region}</div>` : ''}
                   </div>
                 `;
 
@@ -636,6 +607,14 @@ export default function MapView({
 
           layerGroup = L.layerGroup([blocksLayer, outlinesLayerInstance]).addTo(currentMap);
         } else if (effectiveDetailLevel === 'afdeling') {
+          const afdelingAggregates: Record<string, number> = {};
+          filteredFeatures.forEach((feat) => {
+            const kName = feat.properties.kebun || 'Unknown';
+            const afdName = feat.properties.afdeling || 'Unknown';
+            const key = `${kName}_${afdName}`;
+            afdelingAggregates[key] = (afdelingAggregates[key] || 0) + (feat.properties.l_gis || 0);
+          });
+
           const afdFeatures = filteredFeatures.map((feat) => {
             const copy = JSON.parse(JSON.stringify(feat));
             copy.properties.is_afdeling_level = true;
@@ -652,7 +631,7 @@ export default function MapView({
                   fillColor: hasAfd ? color : 'transparent',
                   fillOpacity: hasAfd ? 0.95 : 0,
                   stroke: true,
-                  color: hasAfd ? '#525252' : '#8d8d8d', // Thin charcoal outline to separate every block, light gray for null
+                  color: hasAfd ? '#525252' : '#8d8d8d',
                   weight: 0.8,
                   opacity: 1,
                 };
@@ -661,6 +640,8 @@ export default function MapView({
                 const p = feature.properties;
                 const kebunName = getKebunDisplayName(p.kebun);
                 const afdelingName = p.afdeling ? `Afdeling ${p.afdeling}` : 'Afdeling -';
+                const key = `${p.kebun}_${p.afdeling}`;
+                const totalAfdGis = afdelingAggregates[key] || 0;
 
                 const tooltipHtml = `
                   <div style="font-family: 'IBM Plex Sans', sans-serif; padding: 6px 10px; font-size: 11px; line-height: 1.4; color: #161616;">
@@ -681,7 +662,7 @@ export default function MapView({
                     </div>
                     ` : ''}
                     <div style="font-size: 10px; color: #8d8d8d; border-top: 1px solid #e0e0e0; padding-top: 3px; margin-top: 3px;">
-                      Luas: ${p.l_gis ? p.l_gis.toLocaleString('id-ID', { maximumFractionDigits: 2 }) : 0} Ha
+                      Luas GIS Afdeling: ${totalAfdGis ? totalAfdGis.toLocaleString('id-ID', { maximumFractionDigits: 2 }) : 0} Ha
                     </div>
                   </div>
                 `;
@@ -836,7 +817,7 @@ export default function MapView({
                       Kebun ${kebunName}
                     </div>
                     <div style="font-size: 10px; color: #8d8d8d; border-top: 1px solid #e0e0e0; padding-top: 3px; margin-top: 3px;">
-                      Total Luas: ${p.l_gis ? p.l_gis.toLocaleString('id-ID', { maximumFractionDigits: 2 }) : 0} Ha
+                      Luas GIS Kebun: ${p.l_gis ? p.l_gis.toLocaleString('id-ID', { maximumFractionDigits: 2 }) : 0} Ha
                     </div>
                   </div>
                 `;

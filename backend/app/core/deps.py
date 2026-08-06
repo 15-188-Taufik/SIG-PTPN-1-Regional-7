@@ -12,9 +12,10 @@ def get_current_user(
     try:
         payload = decode_token(credentials.credentials)
         username: str = payload.get("sub")
+        role: str = payload.get("role", "user")
         if not username:
             raise ValueError("No subject in token")
-        return {"username": username}
+        return {"username": username, "role": role}
     except (JWTError, ValueError):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,

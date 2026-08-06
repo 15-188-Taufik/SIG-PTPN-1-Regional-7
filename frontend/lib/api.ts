@@ -163,6 +163,8 @@ export function normalizeKebunName(name: string | null): string {
     'kedaton': 'Unit Kedaton',
     'ketahun': 'Unit Ketahun',
     'padang pelawi': 'Unit Padang Pelawi', 'pawi': 'Unit Padang Pelawi',
+    'musilandas': 'Unit Musilandas',
+    'musi landas': 'Unit Musilandas',
   };
   if (ALIASES[lower]) return ALIASES[lower];
 

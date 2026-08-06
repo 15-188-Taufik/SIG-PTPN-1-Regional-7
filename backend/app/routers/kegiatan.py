@@ -146,6 +146,8 @@ def create_pemeliharaan(
     db: Session = Depends(get_db),
     _user: dict = Depends(get_current_user),
 ):
+    if _user.get("role") != "admin":
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Akses ditolak. Peran Anda tidak memiliki izin untuk memodifikasi data.")
     if is_mock or db is None:
         raise HTTPException(status_code=400, detail="Database mode mock aktif")
 
@@ -181,6 +183,8 @@ def update_pemeliharaan(
     db: Session = Depends(get_db),
     _user: dict = Depends(get_current_user),
 ):
+    if _user.get("role") != "admin":
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Akses ditolak. Peran Anda tidak memiliki izin untuk memodifikasi data.")
     if is_mock or db is None:
         raise HTTPException(status_code=400, detail="Database mode mock aktif")
 
@@ -218,6 +222,8 @@ def delete_pemeliharaan(
     db: Session = Depends(get_db),
     _user: dict = Depends(get_current_user),
 ):
+    if _user.get("role") != "admin":
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Akses ditolak. Peran Anda tidak memiliki izin untuk memodifikasi data.")
     if is_mock or db is None:
         raise HTTPException(status_code=400, detail="Database mode mock aktif")
 
@@ -346,6 +352,8 @@ def create_pemupukan(
     db: Session = Depends(get_db),
     _user: dict = Depends(get_current_user),
 ):
+    if _user.get("role") != "admin":
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Akses ditolak. Peran Anda tidak memiliki izin untuk memodifikasi data.")
     if is_mock or db is None:
         raise HTTPException(status_code=400, detail="Database mode mock aktif")
 
@@ -380,6 +388,8 @@ def update_pemupukan(
     db: Session = Depends(get_db),
     _user: dict = Depends(get_current_user),
 ):
+    if _user.get("role") != "admin":
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Akses ditolak. Peran Anda tidak memiliki izin untuk memodifikasi data.")
     if is_mock or db is None:
         raise HTTPException(status_code=400, detail="Database mode mock aktif")
 
@@ -416,6 +426,8 @@ def delete_pemupukan(
     db: Session = Depends(get_db),
     _user: dict = Depends(get_current_user),
 ):
+    if _user.get("role") != "admin":
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Akses ditolak. Peran Anda tidak memiliki izin untuk memodifikasi data.")
     if is_mock or db is None:
         raise HTTPException(status_code=400, detail="Database mode mock aktif")
 
@@ -547,6 +559,8 @@ def create_produksi(
     db: Session = Depends(get_db),
     _user: dict = Depends(get_current_user),
 ):
+    if _user.get("role") != "admin":
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Akses ditolak. Peran Anda tidak memiliki izin untuk memodifikasi data.")
     if is_mock or db is None:
         raise HTTPException(status_code=400, detail="Database mode mock aktif")
 
@@ -590,6 +604,8 @@ def update_produksi(
     db: Session = Depends(get_db),
     _user: dict = Depends(get_current_user),
 ):
+    if _user.get("role") != "admin":
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Akses ditolak. Peran Anda tidak memiliki izin untuk memodifikasi data.")
     if is_mock or db is None:
         raise HTTPException(status_code=400, detail="Database mode mock aktif")
 
@@ -635,6 +651,8 @@ def delete_produksi(
     db: Session = Depends(get_db),
     _user: dict = Depends(get_current_user),
 ):
+    if _user.get("role") != "admin":
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Akses ditolak. Peran Anda tidak memiliki izin untuk memodifikasi data.")
     if is_mock or db is None:
         raise HTTPException(status_code=400, detail="Database mode mock aktif")
 
