@@ -111,12 +111,12 @@ def get_pemeliharaan(
     total_hk = int(metrics[2]) if metrics else 0
 
     order_clause = FactPemeliharaanHarian.tanggal.asc() if (sort_order and sort_order.lower() == 'asc') else FactPemeliharaanHarian.tanggal.desc()
-    results = query.order_by(order_clause, FactPemeliharaanHarian.id.desc()).offset(offset).limit(limit).all()
+    results = query.order_by(order_clause, FactPemeliharaanHarian.id_fakta.desc()).offset(offset).limit(limit).all()
 
     items = []
     for row, k_nama, a_nama, k_blok in results:
         item = PemeliharaanHarianResponse(
-            id=row.id,
+            id=row.id_fakta,
             blok_id=row.blok_id,
             tanggal=row.tanggal,
             jenis_kegiatan=row.jenis_kegiatan,
@@ -161,7 +161,7 @@ def create_pemeliharaan(
     db.refresh(item)
 
     return PemeliharaanHarianResponse(
-        id=item.id,
+        id=item.id_fakta,
         blok_id=item.blok_id,
         tanggal=item.tanggal,
         jenis_kegiatan=item.jenis_kegiatan,
@@ -188,7 +188,7 @@ def update_pemeliharaan(
     if is_mock or db is None:
         raise HTTPException(status_code=400, detail="Database mode mock aktif")
 
-    item = db.query(FactPemeliharaanHarian).filter(FactPemeliharaanHarian.id == id).first()
+    item = db.query(FactPemeliharaanHarian).filter(FactPemeliharaanHarian.id_fakta == id).first()
     if not item:
         raise HTTPException(status_code=404, detail=f"Catatan pemeliharaan ID {id} tidak ditemukan")
 
@@ -201,7 +201,7 @@ def update_pemeliharaan(
 
     blok = db.query(BlokKebun).filter(BlokKebun.id == item.blok_id).first()
     return PemeliharaanHarianResponse(
-        id=item.id,
+        id=item.id_fakta,
         blok_id=item.blok_id,
         tanggal=item.tanggal,
         jenis_kegiatan=item.jenis_kegiatan,
@@ -227,7 +227,7 @@ def delete_pemeliharaan(
     if is_mock or db is None:
         raise HTTPException(status_code=400, detail="Database mode mock aktif")
 
-    item = db.query(FactPemeliharaanHarian).filter(FactPemeliharaanHarian.id == id).first()
+    item = db.query(FactPemeliharaanHarian).filter(FactPemeliharaanHarian.id_fakta == id).first()
     if not item:
         raise HTTPException(status_code=404, detail=f"Catatan pemeliharaan ID {id} tidak ditemukan")
 
@@ -318,12 +318,12 @@ def get_pemupukan(
     total_hk = int(metrics[2]) if metrics else 0
 
     order_clause = FactPemupukanHarian.tanggal.asc() if (sort_order and sort_order.lower() == 'asc') else FactPemupukanHarian.tanggal.desc()
-    results = query.order_by(order_clause, FactPemupukanHarian.id.desc()).offset(offset).limit(limit).all()
+    results = query.order_by(order_clause, FactPemupukanHarian.id_fakta.desc()).offset(offset).limit(limit).all()
 
     items = []
     for row, k_nama, a_nama, k_blok in results:
         item = PemupukanHarianResponse(
-            id=row.id,
+            id=row.id_fakta,
             blok_id=row.blok_id,
             tanggal=row.tanggal,
             jenis_pupuk=row.jenis_pupuk,
@@ -367,7 +367,7 @@ def create_pemupukan(
     db.refresh(item)
 
     return PemupukanHarianResponse(
-        id=item.id,
+        id=item.id_fakta,
         blok_id=item.blok_id,
         tanggal=item.tanggal,
         jenis_pupuk=item.jenis_pupuk,
@@ -393,7 +393,7 @@ def update_pemupukan(
     if is_mock or db is None:
         raise HTTPException(status_code=400, detail="Database mode mock aktif")
 
-    item = db.query(FactPemupukanHarian).filter(FactPemupukanHarian.id == id).first()
+    item = db.query(FactPemupukanHarian).filter(FactPemupukanHarian.id_fakta == id).first()
     if not item:
         raise HTTPException(status_code=404, detail=f"Catatan pemupukan ID {id} tidak ditemukan")
 
@@ -406,7 +406,7 @@ def update_pemupukan(
 
     blok = db.query(BlokKebun).filter(BlokKebun.id == item.blok_id).first()
     return PemupukanHarianResponse(
-        id=item.id,
+        id=item.id_fakta,
         blok_id=item.blok_id,
         tanggal=item.tanggal,
         jenis_pupuk=item.jenis_pupuk,
@@ -431,7 +431,7 @@ def delete_pemupukan(
     if is_mock or db is None:
         raise HTTPException(status_code=400, detail="Database mode mock aktif")
 
-    item = db.query(FactPemupukanHarian).filter(FactPemupukanHarian.id == id).first()
+    item = db.query(FactPemupukanHarian).filter(FactPemupukanHarian.id_fakta == id).first()
     if not item:
         raise HTTPException(status_code=404, detail=f"Catatan pemupukan ID {id} tidak ditemukan")
 
@@ -465,7 +465,7 @@ def get_produksi(
         BlokKebun.kebun.label("kebun"),
         BlokKebun.afdeling.label("afdeling"),
         BlokKebun.kode_blok.label("kode_blok")
-    ).join(BlokKebun, FactProduksiHarian.blok_id == BlokKebun.id)
+    ).join(BlokKebun, FactProduksiHarian.id_blok == BlokKebun.id)
 
     if kebun:
         kebun_list = [k.strip() for k in kebun.split(",") if k.strip()]
@@ -496,7 +496,7 @@ def get_produksi(
         func.coalesce(func.sum(FactProduksiHarian.produksi_aktual_ton), 0.0).label("sum_aktual"),
         func.coalesce(func.sum(FactProduksiHarian.jumlah_pemanen_hk), 0).label("sum_pemanen")
     ).select_from(FactProduksiHarian)\
-     .join(BlokKebun, FactProduksiHarian.blok_id == BlokKebun.id)
+     .join(BlokKebun, FactProduksiHarian.id_blok == BlokKebun.id)
 
     if kebun:
         kebun_list = [k.strip() for k in kebun.split(",") if k.strip()]
@@ -530,7 +530,7 @@ def get_produksi(
     for row, k_nama, a_nama, kb_kode in results:
         item = ProduksiHarianResponse(
             id_fakta=row.id_fakta,
-            blok_id=row.blok_id,
+            blok_id=row.id_blok,
             tanggal=row.tanggal,
             kebun=k_nama,
             afdeling=a_nama,
@@ -570,7 +570,7 @@ def create_produksi(
         raise HTTPException(status_code=404, detail=f"Blok ID {payload.blok_id} tidak ditemukan")
 
     item = FactProduksiHarian(
-        blok_id=payload.blok_id,
+        id_blok=payload.blok_id,
         tanggal=payload.tanggal,
         target_harian_ton=payload.target_harian_ton,
         produksi_aktual_ton=payload.produksi_aktual_ton,
@@ -584,7 +584,7 @@ def create_produksi(
 
     return ProduksiHarianResponse(
         id_fakta=item.id_fakta,
-        blok_id=item.blok_id,
+        blok_id=item.id_blok,
         tanggal=item.tanggal,
         kebun=blok.kebun,
         afdeling=blok.afdeling,
@@ -628,11 +628,11 @@ def update_produksi(
     db.refresh(item)
 
     # Get block info for response
-    blok = db.query(BlokKebun).filter(BlokKebun.id == item.blok_id).first()
+    blok = db.query(BlokKebun).filter(BlokKebun.id == item.id_blok).first()
 
     return ProduksiHarianResponse(
         id_fakta=item.id_fakta,
-        blok_id=item.blok_id,
+        blok_id=item.id_blok,
         tanggal=item.tanggal,
         kebun=blok.kebun if blok else None,
         afdeling=blok.afdeling if blok else None,

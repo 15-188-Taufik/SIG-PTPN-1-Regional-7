@@ -69,42 +69,41 @@ class DimAfdeling(Base):
 class FactProduksiHarian(Base):
     __tablename__ = "fact_produksi_harian"
 
-    id_fakta = Column(Integer, primary_key=True, index=True, autoincrement=True)
-    blok_id = Column(Integer, ForeignKey("blok_kebun.id", ondelete="CASCADE"), nullable=False, index=True)
-    tanggal = Column(Date, nullable=False, index=True)
-    target_harian_ton = Column(Float)
+    id_fakta            = Column(Integer, primary_key=True, index=True, autoincrement=True)
+    tanggal             = Column(Date, nullable=False, index=True)
+    id_blok             = Column(Integer, ForeignKey("blok_kebun.id", ondelete="CASCADE"), index=True)
+    kode_blok           = Column(Text)
+    target_harian_ton   = Column(Float)
     produksi_aktual_ton = Column(Float)
-    jumlah_pemanen_hk = Column(Integer)
-    curah_hujan_mm = Column(Float)
-    rendemen_persen = Column(Float)
+    jumlah_pemanen_hk   = Column(Integer)
+    curah_hujan_mm      = Column(Float)
+    rendemen_persen     = Column(Float)
 
 
 class FactPemeliharaanHarian(Base):
     __tablename__ = "fact_pemeliharaan_harian"
 
-    id = Column(Integer, primary_key=True, index=True, autoincrement=True)
-    blok_id = Column(Integer, ForeignKey("blok_kebun.id", ondelete="CASCADE"), nullable=False)
-    tanggal = Column(Date, nullable=False, index=True)
+    id_fakta       = Column(Integer, primary_key=True, index=True, autoincrement=True)
+    blok_id        = Column(Integer, ForeignKey("blok_kebun.id", ondelete="CASCADE"), index=True)
+    kode_blok      = Column(Text)
+    tanggal        = Column(Date, nullable=False, index=True)
     jenis_kegiatan = Column(Text, nullable=False)
-    material = Column(Text)
+    material       = Column(Text)
     dosis_aplikasi = Column(Float)
-    luas_aplikasi = Column(Float)
-    tenaga_kerja = Column(Integer)
-    keterangan = Column(Text)
-    created_at = Column(TIMESTAMP, server_default=func.now())
-    updated_at = Column(TIMESTAMP, server_default=func.now(), onupdate=func.now())
+    luas_aplikasi  = Column(Float)
+    tenaga_kerja   = Column(Integer)
+    keterangan     = Column(Text)
 
 
 class FactPemupukanHarian(Base):
     __tablename__ = "fact_pemupukan_harian"
 
-    id = Column(Integer, primary_key=True, index=True, autoincrement=True)
-    blok_id = Column(Integer, ForeignKey("blok_kebun.id", ondelete="CASCADE"), nullable=False)
-    tanggal = Column(Date, nullable=False, index=True)
-    jenis_pupuk = Column(Text, nullable=False)
-    jumlah_pupuk = Column(Float, nullable=False)
+    id_fakta      = Column(Integer, primary_key=True, index=True, autoincrement=True)
+    blok_id       = Column(Integer, ForeignKey("blok_kebun.id", ondelete="CASCADE"), index=True)
+    kode_blok     = Column(Text)
+    tanggal       = Column(Date, nullable=False, index=True)
+    jenis_pupuk   = Column(Text, nullable=False)
+    jumlah_pupuk  = Column(Float, nullable=False)
     luas_aplikasi = Column(Float)
-    tenaga_kerja = Column(Integer)
-    keterangan = Column(Text)
-    created_at = Column(TIMESTAMP, server_default=func.now())
-    updated_at = Column(TIMESTAMP, server_default=func.now(), onupdate=func.now())
+    tenaga_kerja  = Column(Integer)
+    keterangan    = Column(Text)

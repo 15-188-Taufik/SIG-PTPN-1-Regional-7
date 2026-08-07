@@ -21,9 +21,35 @@
  * data akan langsung sinkron secara otomatis ke database!
  */
 
-// Konfigurasi Webhook
-var API_BASE_URL = "https://sig-ptpn-1-regional-7.onrender.com/api/sync"; 
-var API_KEY = "kunci-rahasia-pilihan-anda-2026";                       
+// ============================================================
+// KONFIGURASI AUTO-UPDATE
+// Isi CONFIG_WEBAPP_URL setelah deploy google_config_webapp.js
+// Format: https://script.google.com/macros/s/xxx.../exec
+// ============================================================
+var CONFIG_WEBAPP_URL = "https://script.google.com/macros/s/AKfycbxm74hXWNH0RKZa6Bdn3kXLvS2XI9cKOUFsVGqlkB9sTsahK7y8DbODrneynGk9ED4WAw/exec";
+
+var FALLBACK_URL = "https://sig-ptpn-1-regional-7.onrender.com/api/sync";
+var API_KEY = "kunci-rahasia-pilihan-anda-2026";
+
+/**
+ * Ambil URL backend secara dinamis dari Config Web App.
+ * Jika gagal, fallback ke Render.com.
+ */
+function getBackendUrl() {
+  if (!CONFIG_WEBAPP_URL) return FALLBACK_URL;
+  try {
+    var response = UrlFetchApp.fetch(CONFIG_WEBAPP_URL, { muteHttpExceptions: true });
+    if (response.getResponseCode() === 200) {
+      var data = JSON.parse(response.getContentText());
+      if (data.url && data.url.startsWith("https://")) {
+        return data.url + "/api/sync";
+      }
+    }
+  } catch (err) {
+    Logger.log("Gagal ambil URL dari Config Web App: " + err);
+  }
+  return FALLBACK_URL;
+}
 
 /**
  * Fungsi trigger utama untuk Installable Edit Trigger (Mendukung Multi-Baris / Copy-Paste Bulk).
@@ -142,6 +168,7 @@ function syncBatchToSIG(sheet, sheetType, idColIdx, rowsToSync, rowIndices) {
   };
   
   try {
+    var API_BASE_URL = getBackendUrl(); // Ambil URL terkini secara dinamis
     var response = UrlFetchApp.fetch(API_BASE_URL + "/webhook", options);
     var responseCode = response.getResponseCode();
     var responseText = response.getContentText();

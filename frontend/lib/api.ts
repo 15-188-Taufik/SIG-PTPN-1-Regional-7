@@ -42,6 +42,8 @@ api.interceptors.response.use(
 const CACHE_GEOJSON_KEY = 'sig_ptpn_geojson_v3';
 const CACHE_STATS_KEY = 'sig_ptpn_stats_v3';
 const CACHE_KEBUN_LIST_KEY = 'sig_ptpn_kebun_list_v3';
+const CACHE_KEBUN_OUTLINES_KEY = 'sig_ptpn_kebun_outlines_v3';
+const CACHE_AFD_OUTLINES_KEY = 'sig_ptpn_afd_outlines_v3';
 
 // In-memory cache variables to eliminate re-fetching latency when switching tabs
 let cachedGeoJSON: FeatureCollection | null = null;
@@ -61,6 +63,8 @@ export function invalidateGeoJSONCache() {
       sessionStorage.removeItem(CACHE_GEOJSON_KEY);
       sessionStorage.removeItem(CACHE_STATS_KEY);
       sessionStorage.removeItem(CACHE_KEBUN_LIST_KEY);
+      sessionStorage.removeItem(CACHE_KEBUN_OUTLINES_KEY);
+      sessionStorage.removeItem(CACHE_AFD_OUTLINES_KEY);
     } catch (e) {
       console.warn('Could not clear sessionStorage cache', e);
     }
@@ -84,11 +88,29 @@ export async function fetchKebun(
     if (cachedGeoJSON) {
       return cachedGeoJSON;
     }
+    if (typeof window !== 'undefined') {
+      try {
+        const stored = sessionStorage.getItem(CACHE_GEOJSON_KEY);
+        if (stored) {
+          cachedGeoJSON = JSON.parse(stored);
+          return cachedGeoJSON!;
+        }
+      } catch (e) {
+        console.warn('Error reading GeoJSON from sessionStorage', e);
+      }
+    }
   }
 
   const res = await api.get('/api/kebun', { params });
   if (!params) {
     cachedGeoJSON = res.data;
+    if (typeof window !== 'undefined') {
+      try {
+        sessionStorage.setItem(CACHE_GEOJSON_KEY, JSON.stringify(res.data));
+      } catch (e) {
+        console.warn('SessionStorage quota exceeded for GeoJSON cache', e);
+      }
+    }
   }
   return res.data;
 }
@@ -411,20 +433,60 @@ export async function deleteProduksi(id_fakta: number): Promise<void> {
 }
 
 export async function fetchKebunOutlines(forceRefresh = false): Promise<FeatureCollection> {
-  if (!forceRefresh && cachedKebunOutlines) {
-    return cachedKebunOutlines;
+  if (!forceRefresh) {
+    if (cachedKebunOutlines) {
+      return cachedKebunOutlines;
+    }
+    if (typeof window !== 'undefined') {
+      try {
+        const stored = sessionStorage.getItem(CACHE_KEBUN_OUTLINES_KEY);
+        if (stored) {
+          cachedKebunOutlines = JSON.parse(stored);
+          return cachedKebunOutlines!;
+        }
+      } catch (e) {
+        console.warn('Error reading kebun outlines from sessionStorage', e);
+      }
+    }
   }
   const res = await api.get('/api/kebun/outlines/kebun');
   cachedKebunOutlines = res.data;
+  if (typeof window !== 'undefined') {
+    try {
+      sessionStorage.setItem(CACHE_KEBUN_OUTLINES_KEY, JSON.stringify(res.data));
+    } catch (e) {
+      console.warn('SessionStorage quota exceeded for kebun outlines cache', e);
+    }
+  }
   return res.data;
 }
 
 export async function fetchAfdelingOutlines(forceRefresh = false): Promise<FeatureCollection> {
-  if (!forceRefresh && cachedAfdOutlines) {
-    return cachedAfdOutlines;
+  if (!forceRefresh) {
+    if (cachedAfdOutlines) {
+      return cachedAfdOutlines;
+    }
+    if (typeof window !== 'undefined') {
+      try {
+        const stored = sessionStorage.getItem(CACHE_AFD_OUTLINES_KEY);
+        if (stored) {
+          cachedAfdOutlines = JSON.parse(stored);
+          return cachedAfdOutlines!;
+        }
+      } catch (e) {
+        console.warn('Error reading afdeling outlines from sessionStorage', e);
+      }
+    }
   }
   const res = await api.get('/api/kebun/outlines/afdeling');
   cachedAfdOutlines = res.data;
+  if (typeof window !== 'undefined') {
+    try {
+      sessionStorage.setItem(CACHE_AFD_OUTLINES_KEY, JSON.stringify(res.data));
+    } catch (e) {
+      console.warn('SessionStorage quota exceeded for afdeling outlines cache', e);
+    }
+  }
   return res.data;
 }
 

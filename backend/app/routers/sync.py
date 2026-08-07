@@ -187,7 +187,7 @@ def sync_webhook(
                 row_data = ProduksiHarianRow(**raw_row)
                 row_id = getattr(row_data, "id_fakta", None)
                 
-                # Gunakan blok_id langsung jika ada di sheet, jika tidak lakukan lookup
+                # Schema memetakan kolom 'id_blok' dari sheet ke atribut 'blok_id'
                 blok_id = getattr(row_data, "blok_id", None)
                 if not blok_id:
                     blok_id = get_blok_id(db, row_data.kebun, row_data.afdeling, row_data.no_polygon, row_data.kode_blok)
@@ -197,58 +197,49 @@ def sync_webhook(
                     errors.append(f"Baris {row_num}: Blok dengan ID/Kode Blok '{kode_blok_val}' tidak ditemukan di tabel blok_kebun.")
                     continue
                 
-                # Cek apakah blok_id terdaftar di database untuk mencegah ForeignKeyViolation
+                # Cek apakah blok_id terdaftar di database
                 blok_exists = db.query(BlokKebun).filter(BlokKebun.id == blok_id).first()
                 if not blok_exists:
                     errors.append(f"Baris {row_num}: Blok ID '{blok_id}' tidak ditemukan di tabel blok_kebun.")
                     continue
 
-                # Konversi dan defaultkan nilai jika None untuk mencegah error NOT NULL constraint di DB
-                target_ton = row_data.target_harian_ton if row_data.target_harian_ton is not None else 0.0
-                prod_ton = row_data.produksi_aktual_ton if row_data.produksi_aktual_ton is not None else 0.0
-                pemanen_hk = int(round(row_data.jumlah_pemanen_hk)) if row_data.jumlah_pemanen_hk is not None else 0
-                hujan_mm = row_data.curah_hujan_mm if row_data.curah_hujan_mm is not None else 0.0
-                rendemen = row_data.rendemen_persen if row_data.rendemen_persen is not None else 0.0
+                target_ton  = row_data.target_harian_ton   if row_data.target_harian_ton   is not None else 0.0
+                prod_ton    = row_data.produksi_aktual_ton  if row_data.produksi_aktual_ton  is not None else 0.0
+                pemanen_hk  = int(round(row_data.jumlah_pemanen_hk)) if row_data.jumlah_pemanen_hk is not None else 0
+                hujan_mm    = row_data.curah_hujan_mm       if row_data.curah_hujan_mm       is not None else 0.0
+                rendemen    = row_data.rendemen_persen       if row_data.rendemen_persen       is not None else 0.0
+                kode_blok_v = getattr(row_data, "kode_blok", None)
 
                 record_exists = False
                 if row_id:
                     existing = db.query(FactProduksiHarian).filter(FactProduksiHarian.id_fakta == row_id).first()
                     if existing:
-                        existing.tanggal = row_data.tanggal
-                        existing.blok_id = blok_id
-                        existing.target_harian_ton = target_ton
+                        existing.tanggal             = row_data.tanggal
+                        existing.id_blok             = blok_id
+                        existing.kode_blok           = kode_blok_v
+                        existing.target_harian_ton   = target_ton
                         existing.produksi_aktual_ton = prod_ton
-                        existing.jumlah_pemanen_hk = pemanen_hk
-                        existing.curah_hujan_mm = hujan_mm
-                        existing.rendemen_persen = rendemen
+                        existing.jumlah_pemanen_hk   = pemanen_hk
+                        existing.curah_hujan_mm      = hujan_mm
+                        existing.rendemen_persen     = rendemen
                         db.flush()
                         success_ids.append(row_id)
                         success_count += 1
                         record_exists = True
 
                 if not record_exists:
-                    # Lakukan UPSERT ke fact_produksi_harian
+                    # INSERT baru — tanpa on_conflict karena tidak ada unique constraint
                     stmt = insert(FactProduksiHarian).values(
-                        tanggal=row_data.tanggal,
-                        blok_id=blok_id,
-                        target_harian_ton=target_ton,
-                        produksi_aktual_ton=prod_ton,
-                        jumlah_pemanen_hk=pemanen_hk,
-                        curah_hujan_mm=hujan_mm,
-                        rendemen_persen=rendemen
-                    )
-                    stmt = stmt.on_conflict_do_update(
-                        constraint="uq_produksi_blok_tanggal",
-                        set_={
-                            "target_harian_ton": stmt.excluded.target_harian_ton,
-                            "produksi_aktual_ton": stmt.excluded.produksi_aktual_ton,
-                            "jumlah_pemanen_hk": stmt.excluded.jumlah_pemanen_hk,
-                            "curah_hujan_mm": stmt.excluded.curah_hujan_mm,
-                            "rendemen_persen": stmt.excluded.rendemen_persen
-                        }
-                    )
-                    stmt = stmt.returning(FactProduksiHarian.id_fakta)
-                    res = db.execute(stmt)
+                        tanggal             = row_data.tanggal,
+                        id_blok             = blok_id,
+                        kode_blok           = kode_blok_v,
+                        target_harian_ton   = target_ton,
+                        produksi_aktual_ton = prod_ton,
+                        jumlah_pemanen_hk   = pemanen_hk,
+                        curah_hujan_mm      = hujan_mm,
+                        rendemen_persen     = rendemen
+                    ).returning(FactProduksiHarian.id_fakta)
+                    res    = db.execute(stmt)
                     new_id = res.scalar()
                     success_ids.append(new_id)
                     success_count += 1
@@ -282,10 +273,12 @@ def sync_webhook(
                         tenaga_kerja_val = None
 
                 record_exists = False
+                kode_blok_v = getattr(row_data, "kode_blok", None)
                 if row_id:
-                    existing = db.query(FactPemeliharaanHarian).filter(FactPemeliharaanHarian.id == row_id).first()
+                    existing = db.query(FactPemeliharaanHarian).filter(FactPemeliharaanHarian.id_fakta == row_id).first()
                     if existing:
                         existing.blok_id = blok_id
+                        existing.kode_blok = kode_blok_v
                         existing.tanggal = row_data.tanggal
                         existing.jenis_kegiatan = row_data.jenis_kegiatan
                         existing.material = row_data.material
@@ -299,9 +292,10 @@ def sync_webhook(
                         record_exists = True
 
                 if not record_exists:
-                    # Lakukan UPSERT ke fact_pemeliharaan_harian
+                    # Lakukan INSERT baru (tanpa on_conflict constraint yang sudah dihapus)
                     stmt = insert(FactPemeliharaanHarian).values(
                         blok_id=blok_id,
+                        kode_blok=kode_blok_v,
                         tanggal=row_data.tanggal,
                         jenis_kegiatan=row_data.jenis_kegiatan,
                         material=row_data.material,
@@ -309,19 +303,7 @@ def sync_webhook(
                         luas_aplikasi=row_data.luas_aplikasi,
                         tenaga_kerja=tenaga_kerja_val,
                         keterangan=row_data.keterangan
-                    )
-                    stmt = stmt.on_conflict_do_update(
-                        constraint="uq_pemeliharaan_blok_tanggal_kegiatan",
-                        set_={
-                            "material": stmt.excluded.material,
-                            "dosis_aplikasi": stmt.excluded.dosis_aplikasi,
-                            "luas_aplikasi": stmt.excluded.luas_aplikasi,
-                            "tenaga_kerja": stmt.excluded.tenaga_kerja,
-                            "keterangan": stmt.excluded.keterangan,
-                            "updated_at": stmt.excluded.updated_at
-                        }
-                    )
-                    stmt = stmt.returning(FactPemeliharaanHarian.id)
+                    ).returning(FactPemeliharaanHarian.id_fakta)
                     res = db.execute(stmt)
                     new_id = res.scalar()
                     success_ids.append(new_id)
@@ -356,10 +338,12 @@ def sync_webhook(
                         tenaga_kerja_val = None
 
                 record_exists = False
+                kode_blok_v = getattr(row_data, "kode_blok", None)
                 if row_id:
-                    existing = db.query(FactPemupukanHarian).filter(FactPemupukanHarian.id == row_id).first()
+                    existing = db.query(FactPemupukanHarian).filter(FactPemupukanHarian.id_fakta == row_id).first()
                     if existing:
                         existing.blok_id = blok_id
+                        existing.kode_blok = kode_blok_v
                         existing.tanggal = row_data.tanggal
                         existing.jenis_pupuk = row_data.jenis_pupuk
                         existing.jumlah_pupuk = row_data.jumlah_pupuk
@@ -372,27 +356,17 @@ def sync_webhook(
                         record_exists = True
 
                 if not record_exists:
-                    # Lakukan UPSERT ke fact_pemupukan_harian
+                    # Lakukan INSERT baru
                     stmt = insert(FactPemupukanHarian).values(
                         blok_id=blok_id,
+                        kode_blok=kode_blok_v,
                         tanggal=row_data.tanggal,
                         jenis_pupuk=row_data.jenis_pupuk,
                         jumlah_pupuk=row_data.jumlah_pupuk,
                         luas_aplikasi=row_data.luas_aplikasi,
                         tenaga_kerja=tenaga_kerja_val,
                         keterangan=row_data.keterangan
-                    )
-                    stmt = stmt.on_conflict_do_update(
-                        constraint="uq_pemupukan_blok_tanggal_pupuk",
-                        set_={
-                            "jumlah_pupuk": stmt.excluded.jumlah_pupuk,
-                            "luas_aplikasi": stmt.excluded.luas_aplikasi,
-                            "tenaga_kerja": stmt.excluded.tenaga_kerja,
-                            "keterangan": stmt.excluded.keterangan,
-                            "updated_at": stmt.excluded.updated_at
-                        }
-                    )
-                    stmt = stmt.returning(FactPemupukanHarian.id)
+                    ).returning(FactPemupukanHarian.id_fakta)
                     res = db.execute(stmt)
                     new_id = res.scalar()
                     success_ids.append(new_id)
@@ -444,9 +418,9 @@ def delete_records(
         if sheet_type == "produksi_harian":
             deleted_count = db.query(FactProduksiHarian).filter(FactProduksiHarian.id_fakta.in_(ids)).delete(synchronize_session=False)
         elif sheet_type == "pemeliharaan_harian":
-            deleted_count = db.query(FactPemeliharaanHarian).filter(FactPemeliharaanHarian.id.in_(ids)).delete(synchronize_session=False)
+            deleted_count = db.query(FactPemeliharaanHarian).filter(FactPemeliharaanHarian.id_fakta.in_(ids)).delete(synchronize_session=False)
         elif sheet_type == "pemupukan_harian":
-            deleted_count = db.query(FactPemupukanHarian).filter(FactPemupukanHarian.id.in_(ids)).delete(synchronize_session=False)
+            deleted_count = db.query(FactPemupukanHarian).filter(FactPemupukanHarian.id_fakta.in_(ids)).delete(synchronize_session=False)
         else:
             raise HTTPException(status_code=400, detail=f"Tipe sheet '{sheet_type}' tidak dikenali.")
 

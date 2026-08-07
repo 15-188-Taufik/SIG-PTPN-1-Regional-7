@@ -12,13 +12,13 @@ SessionLocal = None
 
 is_mock = not settings.DATABASE_URL or settings.DATABASE_URL.startswith("mock")
 
+from sqlalchemy.pool import NullPool
+
 if not is_mock:
     try:
         engine = create_engine(
             settings.DATABASE_URL,
-            pool_pre_ping=True,
-            pool_size=5,
-            max_overflow=10,
+            poolclass=NullPool
         )
         SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
     except Exception as e:
