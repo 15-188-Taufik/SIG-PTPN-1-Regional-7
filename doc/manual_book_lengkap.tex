@@ -227,14 +227,20 @@ Untuk memastikan data dari Google Sheets tetap masuk ke Localhost, kita mengguna
 \end{enumerate}
 
 \subsubsection{Menghidupkan Server Setiap Pagi (Operasional Harian)}
-Setiap PC dihidupkan, Staff TI cukup menjalankan:
-\begin{lstlisting}[language=bash]
-# Jalankan Terminal PowerShell 1 (Backend & Tunnel)
-cd D:\SIG-PTPN-1-Regional-7
+Setiap PC dihidupkan, Staff TI harus menjalankan skrip peluncur melalui terminal PowerShell agar tidak terblokir sistem keamanan Windows:
+\begin{enumerate}
+    \item Buka menu Start Windows, ketik \textbf{PowerShell} dan buka aplikasinya.
+    \item Pindah ke folder instalasi proyek dengan mengetik: \texttt{cd "D:\textbackslash SIG-PTPN-1-Regional-7"}
+    \item Jalankan skrip dengan menyertakan izin \textit{Bypass}:
+    \begin{lstlisting}[language=bash]
 powershell -ExecutionPolicy Bypass -File .\start_local_backend.ps1
+    \end{lstlisting}
+    \item Biarkan jendela PowerShell tersebut (Terminal 1) tetap terbuka di latar belakang.
+\end{enumerate}
 
-# Jalankan Terminal PowerShell 2 (Frontend)
-cd D:\SIG-PTPN-1-Regional-7\frontend
+Selanjutnya, buka jendela PowerShell baru (Terminal 2) untuk Frontend:
+\begin{lstlisting}[language=bash]
+cd "D:\SIG-PTPN-1-Regional-7\frontend"
 npm run dev
 \end{lstlisting}
 Skrip \texttt{start\_local\_backend.ps1} akan otomatis mengirimkan URL Cloudflare Tunnel terbaru ke Google Config Web App sehingga Sheets kerani tidak terputus.
